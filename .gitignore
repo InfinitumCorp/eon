@@ -1,0 +1,11 @@
+node_modules
+.output
+dist
+.wrangler
+.env
+.env.*
+*.log
+.vercel
+__pycache__/
+*.pyc
+.claude/

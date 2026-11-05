@@ -1,0 +1,12 @@
+{
+  "name": "eon",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "test": "node --experimental-strip-types --test src/lib/eon/service.test.ts",
+    "calibrate": "node --experimental-strip-types scripts/seeds.ts",
+    "dev": "node --experimental-strip-types scripts/serve.ts",
+    "deploy": "npx wrangler deploy"
+  }
+}

@@ -1,0 +1,4 @@
+name = "eon"
+main = "src/worker.ts"
+compatibility_date = "2026-11-05"
+compatibility_flags = ["nodejs_compat"]
