@@ -77,6 +77,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
         <button data-role="operator" aria-pressed="true">Operator</button>
         <button data-role="teamlead" aria-pressed="false">Team lead</button>
       </div>
+      <button id="reset" hidden>Reset exercise</button>
       <button class="primary" id="sweep">Sweep</button>
     </div>
   </header>
@@ -143,6 +144,7 @@ function render() {
   const lead = role === "teamlead";
   $("status").textContent = "Tick " + pic.tick + " · " + pic.time.slice(11, 16) + "Z · ledger " + (pic.ledgerOk ? "verified" : "BROKEN") + ", " + pic.ledgerLength + " entries";
   $("reportBox").hidden = !lead;
+  $("reset").hidden = !lead;
 
   // Map
   const ring = pic.fixes.map((f) => {
@@ -236,6 +238,25 @@ document.addEventListener("click", async (ev) => {
     } else if (b.dataset.swap) {
       const r = await call("battery", { unitId: b.dataset.swap });
       if (r.ok) toast(r.data.callsign + " battery swapped.");
+    } else if (b.id === "reset") {
+      // Two clicks: the first arms the button for five seconds, the second resets.
+      if (!b.dataset.armed) {
+        b.dataset.armed = "1";
+        b.textContent = "Confirm reset?";
+        b.classList.add("accent");
+        clearTimeout(b.disarm);
+        b.disarm = setTimeout(() => { delete b.dataset.armed; b.textContent = "Reset exercise"; b.classList.remove("accent"); }, 5000);
+        return;
+      }
+      clearTimeout(b.disarm);
+      delete b.dataset.armed;
+      b.textContent = "Reset exercise";
+      b.classList.remove("accent");
+      const r = await call("reset", {});
+      if (r.ok) {
+        toast("Exercise reset to tick 0.");
+        $("reportBody").innerHTML = "";
+      }
     } else if (b.id === "report") return await loadReport();
     await load();
     if (role === "teamlead" && $("reportBody").innerHTML) await loadReport();
