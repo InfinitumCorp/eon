@@ -83,12 +83,13 @@ src/lib/eon/scenario.ts    Exercise QUIETFIELD: units, synthetic emitters, link 
 src/lib/eon/rf.ts          Path loss, bearings, classifier, weighted bearing fusion
 src/lib/eon/service.ts     The exercise: sense, protect, conceal, share, counter-drone, power, report
 src/lib/eon/ledger.ts      Private Ed25519-signed SHA-256 hash chain
-src/lib/eon/http.ts        HTTP contract
+src/lib/eon/http.ts        HTTP contract: parses requests into actions
+src/lib/eon/exercise.ts    Action log, replay and the shared exercise session
 scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
 ```
 
-State lives in the Worker isolate's memory, as in ODIN°™. An isolate restart resets the exercise, and two visitors routed to different isolates see different exercises. Move it to a Durable Object if a session must survive restarts or be shared across isolates.
+State lives in one Durable Object (`EonExercise`), so every viewer sees the same exercise. The exercise is deterministic from its seed, so its state is just the ordered log of actions (sweeps, EMCON changes, engagements and so on) kept in the object's storage. When the object starts again after an eviction or a deploy, it replays the log and rebuilds the same picture, ledger hashes included. Requests are applied one at a time, so the log order is the order the exercise saw them. Reset clears the log. Local runs (`npm run dev`) keep the log in memory.
 
 ## Cloudflare
 
@@ -97,6 +98,7 @@ State lives in the Worker isolate's memory, as in ODIN°™. An isolate restart 
 - Access: Cloudflare Access protects every Worker on the account (production and previews) with the "Cloudflare account" policy, so only members of the Cloudflare account can sign in. Add people under Manage Account → Members, or change the policy in Zero Trust.
 - Config: `wrangler.toml`
 - Worker entry: `src/worker.ts`
+- Durable Object: `EonExercise` (binding `EXERCISE`, SQLite-backed, migration `v1`)
 - Deploy (after `npx wrangler login`, or with `CLOUDFLARE_API_TOKEN` set):
 
 ```bash

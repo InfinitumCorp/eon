@@ -690,15 +690,3 @@ function affiliationOfTrack(tracks: { id: string; freqMHz: number }[], track: st
   const t = tracks.find((x) => x.id === track);
   return t && FRIENDLY_REGISTRY.some((f) => Math.abs(f.freqMHz - t.freqMHz) <= f.halfWidthMHz) ? "friendly" : "hostile";
 }
-
-let current: Promise<Eon> | null = null;
-
-export function getEon(): Promise<Eon> {
-  current ??= Eon.create();
-  return current;
-}
-
-export function resetEon(): Promise<Eon> {
-  current = Eon.create();
-  return current;
-}

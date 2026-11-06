@@ -2,3 +2,11 @@ name = "eon"
 main = "src/worker.ts"
 compatibility_date = "2026-11-05"
 compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "EXERCISE"
+class_name = "EonExercise"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EonExercise"]

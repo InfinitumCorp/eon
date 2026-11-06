@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { handleEonRequest } from "./http.ts";
 import { classify, distance, intersectBearings } from "./rf.ts";
-import { Eon, resetEon } from "./service.ts";
+import { type Action, DurableStore, Exercise, MemoryStore } from "./exercise.ts";
+import { Eon } from "./service.ts";
+import worker, { EonExercise } from "../../worker.ts";
 
 async function run(ticks: number, seed = 7) {
   const eon = await Eon.create(seed);
@@ -232,8 +234,8 @@ test("the same seed gives the same exercise", async () => {
 });
 
 test("HTTP contract", async () => {
-  await resetEon();
-  const call = (path: string, init?: RequestInit) => handleEonRequest(new Request(`http://x/api/eon/${path}`, init), path.split("?")[0]);
+  const exercise = new Exercise(new MemoryStore());
+  const call = (path: string, init?: RequestInit) => handleEonRequest(new Request(`http://x/api/eon/${path}`, init), path.split("?")[0], exercise);
   const post = (path: string, body: unknown) => call(path, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
 
   const health = await (await call("health")).json();
@@ -263,4 +265,123 @@ test("HTTP contract", async () => {
   assert.equal((await post("reset", { role: "teamlead" })).status, 200);
   assert.equal((await (await call("picture?role=operator")).json()).tick, 0);
   assert.equal((await call("nope")).status, 404);
+  assert.equal((await post("nope", { role: "operator" })).status, 404);
+});
+
+/** A Map-backed stand-in for Durable Object storage. */
+function fakeStorage() {
+  const map = new Map<string, unknown>();
+  let failNextPut = false;
+  return {
+    map,
+    failNextPut: () => {
+      failNextPut = true;
+    },
+    async list<T>({ prefix }: { prefix: string }) {
+      return new Map([...map].filter(([k]) => k.startsWith(prefix))) as Map<string, T>;
+    },
+    async put<T>(key: string, value: T) {
+      if (failNextPut) {
+        failNextPut = false;
+        throw new Error("storage unavailable");
+      }
+      map.set(key, structuredClone(value));
+    },
+    async deleteAll() {
+      map.clear();
+    },
+  };
+}
+
+const SCRIPT: Action[] = [
+  { op: "sweep", role: "operator" },
+  { op: "sweep", role: "operator" },
+  { op: "emcon", role: "teamlead", unitId: "eon-1", profile: "silent" },
+  { op: "sweep", role: "operator" },
+  { op: "engage", role: "operator", track: "T2440", method: "disrupt" },
+  { op: "engage", role: "teamlead", track: "T915", method: "handoff" },
+  { op: "battery", role: "operator", unitId: "eon-4" },
+  { op: "emcon", role: "teamlead", unitId: "eon-1", profile: "normal" },
+  { op: "sweep", role: "operator" },
+];
+
+test("replaying the action log rebuilds the same exercise", async () => {
+  const storage = fakeStorage();
+  const first = new Exercise(new DurableStore(storage));
+  for (const a of SCRIPT) await first.act(a);
+  const pending = await first.read((eon) => eon.picture("teamlead"));
+  const req = pending.engagements.find((e) => e.status === "requested")!;
+  await first.act({ op: "decide", role: "teamlead", engagementId: req.id, decision: "approve" });
+  await first.act({ op: "sweep", role: "operator" });
+  const before = await first.read((eon) => eon.picture("teamlead"));
+  const headBefore = await first.read((eon) => eon.ledger.head);
+
+  // A new object over the same storage stands in for an evicted, restarted Durable Object.
+  const second = new Exercise(new DurableStore(storage));
+  const after = await second.read((eon) => eon.picture("teamlead"));
+  assert.equal(second.replayed, SCRIPT.length + 2);
+  assert.equal(after.tick, before.tick);
+  assert.deepEqual(after.units, before.units);
+  assert.deepEqual(after.fixes, before.fixes);
+  assert.deepEqual(after.alerts, before.alerts);
+  assert.deepEqual(after.engagements, before.engagements);
+  assert.equal(after.engagements.find((e) => e.track === "T2440")!.status, "effective");
+  assert.equal(await second.read((eon) => eon.ledger.head), headBefore, "same chain of custody hashes");
+  assert.equal(after.ledgerOk, true);
+});
+
+test("concurrent requests are applied one at a time, in log order", async () => {
+  const storage = fakeStorage();
+  const exercise = new Exercise(new DurableStore(storage));
+  const results = await Promise.all(Array.from({ length: 6 }, () => exercise.act({ op: "sweep", role: "operator" })));
+  assert.deepEqual(
+    results.map((r) => (r.body as { data: { tick: number } }).data.tick),
+    [1, 2, 3, 4, 5, 6],
+  );
+  assert.equal(storage.map.size, 6);
+  const replay = new Exercise(new DurableStore(storage));
+  assert.equal(await replay.read((eon) => eon.tick), 6);
+});
+
+test("a failed storage write drops memory so the exercise matches storage again", async () => {
+  const storage = fakeStorage();
+  const exercise = new Exercise(new DurableStore(storage));
+  await exercise.act({ op: "sweep", role: "operator" });
+  storage.failNextPut();
+  await assert.rejects(exercise.act({ op: "sweep", role: "operator" }), /storage unavailable/);
+  assert.equal(await exercise.read((eon) => eon.tick), 1, "rebuilt from the one stored action");
+});
+
+test("reset clears storage", async () => {
+  const storage = fakeStorage();
+  const exercise = new Exercise(new DurableStore(storage));
+  await exercise.act({ op: "sweep", role: "operator" });
+  assert.equal((await exercise.act({ op: "reset", role: "operator" })).status, 403);
+  assert.equal(storage.map.size, 1);
+  assert.equal((await exercise.act({ op: "reset", role: "teamlead" })).status, 200);
+  assert.equal(storage.map.size, 0);
+  assert.equal(await new Exercise(new DurableStore(storage)).read((eon) => eon.tick), 0);
+});
+
+test("the Worker routes the API to one Durable Object and serves the console", async () => {
+  const storage = fakeStorage();
+  const object = new EonExercise({ storage });
+  const names: string[] = [];
+  const env = {
+    EXERCISE: {
+      idFromName: (name: string) => {
+        names.push(name);
+        return name;
+      },
+      get: () => ({ fetch: (r: Request) => object.fetch(r) }),
+    },
+  };
+  const sweep = await worker.fetch(new Request("http://x/api/eon/sweep", { method: "POST", body: JSON.stringify({ role: "operator" }) }), env);
+  assert.equal(sweep.status, 200);
+  const health = await (await worker.fetch(new Request("http://x/health"), env)).json();
+  assert.equal(health.tick, 1);
+  assert.deepEqual([...new Set(names)], ["QUIETFIELD"]);
+  assert.equal(storage.map.size, 1);
+  const page = await worker.fetch(new Request("http://x/"), env);
+  assert.match(page.headers.get("content-type")!, /text\/html/);
 });
