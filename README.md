@@ -76,6 +76,7 @@ npm run dev
 
 Then open http://localhost:8787 (console) or http://localhost:8787/wrist?unit=eon-1 (wrist display).
 
+GitHub Actions runs `npm test` on every push to main and on pull requests (`.github/workflows/test.yml`).
 
 ## Layout
 
