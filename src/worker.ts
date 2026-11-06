@@ -1,4 +1,5 @@
 import { CONSOLE_HTML } from "./console.ts";
+import { WRIST_HTML } from "./wrist.ts";
 import { type DurableStorageLike, DurableStore, Exercise, MemoryStore } from "./lib/eon/exercise.ts";
 import { handleEonRequest } from "./lib/eon/http.ts";
 import { EXERCISE } from "./lib/eon/scenario.ts";
@@ -14,6 +15,16 @@ interface Env {
 }
 
 const PREFIX = "/api/eon";
+
+const PAGES: Record<string, string> = { "/": CONSOLE_HTML, "/wrist": WRIST_HTML };
+
+const PAGE_HEADERS = {
+  "content-type": "text/html; charset=utf-8",
+  "cache-control": "no-store",
+  "content-security-policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+};
 
 function splatOf(url: URL): string | null {
   if (url.pathname === "/health") return "health";
@@ -44,7 +55,7 @@ let local: Exercise | null = null;
 
 /**
  * Cloudflare Worker entry for the E(O)N™ MIL exercise.
- * Serves the console at / and the API at /api/eon/*.
+ * Serves the console at /, the wrist display at /wrist and the API at /api/eon/*.
  */
 export default {
   async fetch(request: Request, env: Env = {}): Promise<Response> {
@@ -55,17 +66,8 @@ export default {
       local ??= new Exercise(new MemoryStore());
       return handleEonRequest(request, splat, local);
     }
-    if (url.pathname === "/" && request.method === "GET") {
-      return new Response(CONSOLE_HTML, {
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-          "cache-control": "no-store",
-          "content-security-policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
-          "x-content-type-options": "nosniff",
-          "referrer-policy": "no-referrer",
-        },
-      });
-    }
+    const page = request.method === "GET" ? PAGES[url.pathname] : undefined;
+    if (page) return new Response(page, { headers: PAGE_HEADERS });
     return new Response("Not found.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
   },
 };

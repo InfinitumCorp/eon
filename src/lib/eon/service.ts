@@ -43,7 +43,11 @@ import type {
   Role,
   ScanMode,
   UnitView,
+  WristThreat,
+  WristView,
 } from "./types.ts";
+
+const COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
 interface UnitState {
   id: string;
@@ -665,6 +669,54 @@ export class Eon {
       ledgerHead: this.ledger.head,
       // Operators see that the chain holds; the team lead reads it.
       ledger: role === "teamlead" ? this.ledger.entries.slice(-50) : [],
+    };
+  }
+
+  /**
+   * Glanceable view for one wearer's wrist display: the nearest live hostile
+   * drone (located, heard within a tick, airframe not yet defeated), plus the
+   * newest unacknowledged alert for this wearer or the whole team.
+   */
+  wrist(unitId: string): Result<WristView> {
+    const u = this.units.find((x) => x.id === unitId);
+    if (!u) return { ok: false, error: `No unit ${unitId}.` };
+    const defeated = new Set(
+      this.engagements.filter((e) => e.status === "effective" || e.status === "intercepted").map((e) => this.platformOf(e.track)),
+    );
+    const threats: WristThreat[] = [];
+    for (const fix of this.fixes.values()) {
+      if (fix.affiliation !== "hostile" || !DRONE.has(fix.cls)) continue;
+      if (defeated.has(this.platformOf(fix.track))) continue;
+      const lastHeard = Math.max(-1, ...this.shared.filter((d) => d.track === fix.track).map((d) => d.tick));
+      if (this.tick - lastHeard > 1) continue;
+      const b = bearingDeg(u.reportedPos, fix.pos);
+      threats.push({
+        track: fix.track,
+        cls: fix.cls,
+        bearingDeg: Math.round(b),
+        compass: COMPASS[Math.round(b / 45) % 8],
+        distanceM: Math.round(distance(u.reportedPos, fix.pos)),
+        errorM: fix.errorM,
+        fixTick: fix.tick,
+      });
+    }
+    threats.sort((a, b) => a.distanceM - b.distanceM || a.track.localeCompare(b.track));
+    // One airframe can carry several links; count airframes, not tracks.
+    const nearest = threats[0] ?? null;
+    const airframes = new Set(threats.map((t) => this.platformOf(t.track)));
+    const open = this.alerts.filter((a) => !a.acked && (a.unitId === null || a.unitId === u.id));
+    return {
+      ok: true,
+      data: {
+        exercise: EXERCISE,
+        tick: this.tick,
+        time: this.time,
+        unit: this.view(u),
+        threat: nearest,
+        moreThreats: Math.max(0, airframes.size - 1),
+        alert: open.at(-1) ?? null,
+        unacked: open.length,
+      },
     };
   }
 

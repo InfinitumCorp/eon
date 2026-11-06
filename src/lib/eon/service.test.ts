@@ -108,6 +108,31 @@ test("counter-drone: WARDEN hand-off intercepts after two ticks; a rejection sta
   assert.ok((await other.picture("teamlead")).detections.some((d) => d.tick === other.tick && d.track === "T2440"), "drone still flying");
 });
 
+test("the wrist display points each wearer at the live hostile drone and clears once it is defeated", async () => {
+  const eon = await run(3);
+  assert.equal(eon.wrist("eon-9").ok, false);
+  const truth = eon.truth().emitters.find((e) => e.id === "em-ctrl")!;
+  for (const id of ["eon-1", "eon-2", "eon-3", "eon-4"]) {
+    const w = eon.wrist(id).data!;
+    assert.ok(w.threat, `${id} sees a threat`);
+    assert.ok(["T2440", "T5800"].includes(w.threat.track), "never the friendly T915");
+    assert.equal(w.moreThreats, 0, "control and video are one airframe");
+    const unit = w.unit.pos;
+    const trueDist = distance(unit, truth.pos);
+    assert.ok(Math.abs(w.threat.distanceM - trueDist) <= w.threat.errorM + 50, `${id} range within the ellipse`);
+    assert.ok(w.threat.bearingDeg >= 0 && w.threat.bearingDeg < 360);
+  }
+  const w1 = eon.wrist("eon-1").data!;
+  assert.ok(w1.alert && !w1.alert.acked && w1.unacked >= 1, "newest open alert shown");
+  await eon.ack("operator", w1.alert.id);
+  assert.equal(eon.wrist("eon-1").data!.unacked, w1.unacked - 1);
+
+  const req = await eon.engage("teamlead", "T2440", "disrupt");
+  await eon.decide("teamlead", req.data!.id, "approve");
+  await eon.sweep("operator");
+  assert.equal(eon.wrist("eon-1").data!.threat, null, "defeated airframe drops off the wrist");
+});
+
 test("a stale fix must be refreshed before engaging", async () => {
   const eon = await Eon.create();
   for (let i = 0; i < 3; i++) await eon.sweep("operator");
@@ -384,4 +409,10 @@ test("the Worker routes the API to one Durable Object and serves the console", a
   assert.equal(storage.map.size, 1);
   const page = await worker.fetch(new Request("http://x/"), env);
   assert.match(page.headers.get("content-type")!, /text\/html/);
+  const wristPage = await worker.fetch(new Request("http://x/wrist?unit=eon-2"), env);
+  assert.match(await wristPage.text(), /wrist display/i);
+  const wrist = await (await worker.fetch(new Request("http://x/api/eon/wrist?unit=eon-2"), env)).json();
+  assert.equal(wrist.data.unit.callsign, "ASH 1-2");
+  assert.equal((await worker.fetch(new Request("http://x/api/eon/wrist?unit=nope"), env)).status, 404);
+  assert.equal((await worker.fetch(new Request("http://x/api/eon/wrist"), env)).status, 400);
 });

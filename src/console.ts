@@ -70,7 +70,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
       <div class="mark">E(O)N<sup>™</sup> MIL</div>
       <h1>Exercise QUIETFIELD</h1>
       <p class="lead" id="status">Loading the picture…</p>
-      <p class="small">Simulation. Not for operational use. Synthetic emitters only. Inside ODIN°<sup>™</sup>.</p>
+      <p class="small">Simulation. Not for operational use. Synthetic emitters only. Inside ODIN°<sup>™</sup>. <a href="/wrist" style="color:inherit">Wrist display</a></p>
     </div>
     <div class="bar">
       <div class="seg" role="group" aria-label="Role">

@@ -22,6 +22,7 @@ Product page: https://infinitum-corporation.vercel.app/products/eon
 | Counter-drone | Tracks are called friendly (against the ODIN° friendly registry), hostile (drone links) or unknown. Hostile drones raise a team-wide warning with a bearing and a fix. An operator may request an engagement; only the team lead orders one. |
 | Rules of engagement | An engagement is refused if the track is friendly, not a drone, unlocated, has a stale fix, has not been heard in the last tick, is on an airframe already defeated, or (for link disruption) would reach a friendly or team band. Every refusal is on the ledger. |
 | Power management | Battery and endurance per wearer. Below 25% a wearer drops to economy scan (half the revisit, less drain); a battery swap restores wide scan. |
+| Wrist display | Each wearer gets a watch-sized page at `/wrist?unit=eon-1`: a north-up arrow and range to the nearest live hostile drone (located, heard in the last tick, airframe not yet defeated) with its error radius, the newest open alert with one-tap acknowledge, and link, nav and battery. It refreshes every 3 s. |
 | After-action report | Exercise control scores the shared picture against ground truth: detection latency, classification, fix accuracy against the stated ellipse, link availability, drone warnings, engagement outcomes, friendly engagements and spoof detection time, plus lessons. |
 
 ### Scenario timeline (seed 7)
@@ -47,6 +48,7 @@ Roles are exercise clearances, not accounts.
 |---|---|---|
 | GET | `/api/eon/health` | — |
 | GET | `/api/eon/picture` | `?role=operator\|teamlead` |
+| GET | `/api/eon/wrist` | `?unit=eon-1` (one wearer's wrist view) |
 | GET | `/api/eon/ledger` | `?role=teamlead` |
 | GET | `/api/eon/report` | `?role=teamlead` |
 | POST | `/api/eon/sweep` | `{ role }` |
@@ -58,7 +60,7 @@ Roles are exercise clearances, not accounts.
 | POST | `/api/eon/decisions` | `{ role, engagementId, decision: approve\|reject, note? }` (team lead) |
 | POST | `/api/eon/reset` | `{ role }` (team lead) |
 
-The console is served at `/`.
+The console is served at `/` and the wrist display at `/wrist`.
 
 ## Run it
 
@@ -72,13 +74,15 @@ npm test
 npm run dev
 ```
 
-Then open http://localhost:8787.
+Then open http://localhost:8787 (console) or http://localhost:8787/wrist?unit=eon-1 (wrist display).
+
 
 ## Layout
 
 ```
-src/worker.ts              Cloudflare Worker entry: console at /, API at /api/eon/*
+src/worker.ts              Cloudflare Worker entry: console at /, wrist at /wrist, API at /api/eon/*
 src/console.ts             The console page (BUILD_RULES styling)
+src/wrist.ts               The per-wearer wrist display
 src/lib/eon/scenario.ts    Exercise QUIETFIELD: units, synthetic emitters, link paths, scripts
 src/lib/eon/rf.ts          Path loss, bearings, classifier, weighted bearing fusion
 src/lib/eon/service.ts     The exercise: sense, protect, conceal, share, counter-drone, power, report

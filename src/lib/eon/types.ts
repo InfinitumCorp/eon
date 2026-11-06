@@ -217,6 +217,34 @@ export interface Picture {
   ledger: LedgerEntry[];
 }
 
+/** The nearest live hostile drone as seen from one wearer. */
+export interface WristThreat {
+  track: string;
+  cls: EmitterClass;
+  /** True bearing from the wearer's reported position, degrees. */
+  bearingDeg: number;
+  /** Compass point for the bearing, e.g. "NE". */
+  compass: string;
+  distanceM: number;
+  /** 95% error radius of the fix, metres. */
+  errorM: number;
+  fixTick: number;
+}
+
+/** Glanceable per-wearer view for the wrist display. */
+export interface WristView {
+  exercise: string;
+  tick: number;
+  time: string;
+  unit: UnitView;
+  threat: WristThreat | null;
+  /** Other live hostile drone tracks beyond the nearest. */
+  moreThreats: number;
+  /** Newest unacknowledged alert for this wearer or the whole team. */
+  alert: Alert | null;
+  unacked: number;
+}
+
 export interface Result<T = unknown> {
   ok: boolean;
   error?: string;
