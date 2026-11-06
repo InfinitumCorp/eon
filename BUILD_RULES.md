@@ -35,7 +35,7 @@ All product UIs follow this site: clean, white, calm and content-first (in the s
   | Product | Wordmark |
   |---|---|
   | Argus | `>_ARGUS™` |
-  | Conductor | `/CNDCTR/™` |
+  | Architect | `:\ARCHITECT\™` |
   | Scalvs | `SCALVS.ai™` |
   | Flower | `Flower™` |
   | Nemesis | `NEMESIS™` |
