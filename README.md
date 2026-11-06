@@ -100,6 +100,8 @@ src/lib/eon/access.ts      Cloudflare Access token verification (who is acting)
 src/lib/eon/integrity.ts   On-device integrity checks, weights, recommendations, health score
 scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
+scripts/handoff.ts         Writes handoff/eon_work.js and .py from eon_work.ts
+handoff/                   Handoff record (TypeScript, JavaScript, Python) for the next person or model
 ```
 
 State lives in one Durable Object (`EonExercise`), so every viewer sees the same exercise. The exercise is deterministic from its seed, so its state is just the ordered log of actions (sweeps, EMCON changes, engagements and so on) kept in the object's storage. When the object starts again after an eviction or a deploy, it replays the log and rebuilds the same picture, ledger hashes included. Requests are applied one at a time, so the log order is the order the exercise saw them. Reset clears the log. Local runs (`npm run dev`) keep the log in memory.
