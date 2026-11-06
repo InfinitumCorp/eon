@@ -37,7 +37,9 @@ Product page: https://infinitum-corporation.vercel.app/products/eon
 
 ## Roles
 
-Roles are exercise clearances, not accounts. Who holds them comes from Cloudflare Access: the Worker verifies the Access token (RS256 signature against the team's published keys, issuer, audience, expiry) on every request and refuses the request if it does not check out. The verified email is kept with each action in the log and written as `by` on every ledger entry a person caused, and engagements record who requested and who ordered or rejected them. The Worker strips any `x-eon-person` header a client sends, so no one can name themselves. Local runs have no Access and name no one.
+Roles are locked to sign-ins. With Cloudflare Access on, only the emails in `TEAM_LEADS` (`wrangler.toml`, comma-separated, case-insensitive) are cleared as team lead; everyone else who signs in is an operator. The Worker passes the clearance to the exercise in an `x-eon-clearance` header it always strips from client requests, and the API refuses any team-lead request (picture, ledger, report, EMCON, orders, reset) from someone not cleared, with a 403. The console hides the Team lead toggle for operators. With Access on and `TEAM_LEADS` empty, no one is team lead. Local runs have no Access, so any role goes.
+
+Who acts comes from Cloudflare Access: the Worker verifies the Access token (RS256 signature against the team's published keys, issuer, audience, expiry) on every request and refuses the request if it does not check out. The verified email is kept with each action in the log and written as `by` on every ledger entry a person caused, and engagements record who requested and who ordered or rejected them. The Worker strips any `x-eon-person` header a client sends, so no one can name themselves. Local runs have no Access and name no one.
 
 - **Operator**: sweep, acknowledge alerts, set scan mode, swap batteries, request engagements. Sees the ledger status, not its entries.
 - **Team lead**: everything above, plus EMCON, ordering or rejecting engagements, the ledger and the after-action report.
@@ -102,7 +104,7 @@ State lives in one Durable Object (`EonExercise`), so every viewer sees the same
 - Project name: `eon`
 - Production URL: https://eon.infinitumcorp.workers.dev (account subdomain `infinitumcorp`)
 - Access: Cloudflare Access protects every Worker on the account (production and previews) with the "Cloudflare account" policy, so only members of the Cloudflare account can sign in. Add people under Manage Account → Members, or change the policy in Zero Trust.
-- Identity: `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` in `wrangler.toml` turn on Access token checks (`src/lib/eon/access.ts`). If the Access application is recreated, update `ACCESS_AUD` to its new audience tag.
+- Identity: `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` in `wrangler.toml` turn on Access token checks (`src/lib/eon/access.ts`). `TEAM_LEADS` lists who may act as team lead; edit it and redeploy to change who leads. If the Access application is recreated, update `ACCESS_AUD` to its new audience tag.
 - Config: `wrangler.toml`
 - Worker entry: `src/worker.ts`
 - Durable Object: `EonExercise` (binding `EXERCISE`, SQLite-backed, migration `v1`)

@@ -83,7 +83,7 @@ test("Access tokens: an unknown key id triggers one refetch, for key rotation", 
 test("the Worker names the signed-in person on the ledger and engagements, and ignores a forged name", async () => {
   resetAccessCache();
   const { fetcher } = certs([signer.jwk]);
-  const env = { ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ACCESS_CERTS: fetcher };
+  const env = { ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ACCESS_CERTS: fetcher, TEAM_LEADS: " Lead@Example.com , other@example.com" };
   const as = async (email: string) => ({ "cf-access-jwt-assertion": await token({ email }), "content-type": "application/json" });
   const post = async (path: string, body: unknown, headers: Record<string, string>) =>
     worker.fetch(new Request(`http://x/api/eon/${path}`, { method: "POST", headers, body: JSON.stringify(body) }), env);
@@ -138,4 +138,50 @@ test("the person is kept in the action log, so a replay attributes the same deci
   const [replayedHead, entry] = await again.read((eon) => [eon.ledger.head, eon.ledger.entries.findLast((e) => e.type === "engagement")!] as const);
   assert.equal(replayedHead, head);
   assert.equal(entry.payload.by, "lead@example.com");
+});
+
+test("roles are locked to sign-ins: only TEAM_LEADS may act as team lead", async () => {
+  resetAccessCache();
+  const { fetcher } = certs([signer.jwk]);
+  const env = { ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ACCESS_CERTS: fetcher, TEAM_LEADS: "lead@example.com" };
+  const as = async (email: string, extra: Record<string, string> = {}) => ({
+    "cf-access-jwt-assertion": await token({ email }),
+    "content-type": "application/json",
+    ...extra,
+  });
+  const get = async (path: string, headers: Record<string, string>) => worker.fetch(new Request(`http://x/api/eon/${path}`, { headers }), env);
+  const post = async (path: string, body: unknown, headers: Record<string, string>) =>
+    worker.fetch(new Request(`http://x/api/eon/${path}`, { method: "POST", headers, body: JSON.stringify(body) }), env);
+
+  const op = await as("op@example.com");
+  const forged = await as("op@example.com", { "x-eon-clearance": "teamlead" });
+  const lead = await as("LEAD@example.com");
+
+  for (const h of [op, forged]) {
+    assert.equal((await get("picture?role=teamlead", h)).status, 403);
+    assert.equal((await get("ledger?role=teamlead", h)).status, 403);
+    assert.equal((await get("report?role=teamlead", h)).status, 403);
+    const r = await post("reset", { role: "teamlead" }, h);
+    assert.equal(r.status, 403);
+    assert.match((await r.json()).error, /not cleared as team lead/);
+    assert.equal((await post("emcon", { role: "teamlead", unitId: "eon-1", profile: "silent" }, h)).status, 403);
+  }
+  const opPic = await (await get("picture?role=operator", op)).json();
+  assert.equal(opPic.clearance, "operator");
+  assert.equal((await post("sweep", { role: "operator" }, op)).status, 200, "operators still operate");
+
+  const leadPic = await (await get("picture?role=teamlead", lead)).json();
+  assert.equal(leadPic.clearance, "teamlead", "email match ignores case");
+  assert.equal((await post("reset", { role: "teamlead" }, lead)).status, 200);
+
+  // No list: with Access on, no one is team lead.
+  const none = { ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ACCESS_CERTS: fetcher };
+  const res = await worker.fetch(new Request("http://x/api/eon/picture?role=teamlead", { headers: lead }), none);
+  assert.equal(res.status, 403);
+});
+
+test("without Access, roles stay open and a client cannot send itself a clearance", async () => {
+  const res = await worker.fetch(new Request("http://x/api/eon/picture?role=teamlead", { headers: { "x-eon-clearance": "operator" } }), {});
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).clearance, null);
 });

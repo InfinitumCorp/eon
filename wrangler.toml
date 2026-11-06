@@ -8,6 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ACCESS_TEAM_DOMAIN = "small-band-b1e1.cloudflareaccess.com"
 ACCESS_AUD = "bccb174669026677dfb5aeaca0072e6a8a2409591b798ab49b6ce548f9be7d66"
+# Who may act as team lead (comma-separated). Everyone else signed in is an operator.
+TEAM_LEADS = "theinfinitumcorp@gmail.com"
 
 [[durable_objects.bindings]]
 name = "EXERCISE"

@@ -221,6 +221,8 @@ export interface Picture {
   ledger: LedgerEntry[];
   /** Who is looking, from Cloudflare Access; null for local runs. */
   viewer?: string | null;
+  /** Highest role the viewer may take; null when roles are not locked (local runs). */
+  clearance?: Role | null;
 }
 
 /** The nearest live hostile drone as seen from one wearer. */

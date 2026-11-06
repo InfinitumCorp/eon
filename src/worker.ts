@@ -2,7 +2,7 @@ import { CONSOLE_HTML } from "./console.ts";
 import { WRIST_HTML } from "./wrist.ts";
 import { type DurableStorageLike, DurableStore, Exercise, MemoryStore } from "./lib/eon/exercise.ts";
 import { type AccessConfig, type CertFetcher, verifyAccessJwt } from "./lib/eon/access.ts";
-import { handleEonRequest, PERSON_HEADER } from "./lib/eon/http.ts";
+import { CLEARANCE_HEADER, handleEonRequest, PERSON_HEADER } from "./lib/eon/http.ts";
 import { EXERCISE } from "./lib/eon/scenario.ts";
 
 interface DurableObjectNamespaceLike {
@@ -17,12 +17,22 @@ interface Env {
   ACCESS_TEAM_DOMAIN?: string;
   /** Audience tag of the Access application in front of this Worker. */
   ACCESS_AUD?: string;
+  /**
+   * Comma-separated emails cleared as team lead. With Access on, everyone else
+   * who signs in is an operator; an empty list means no one is team lead.
+   */
+  TEAM_LEADS?: string;
   /** Tests only: where to get Access signing keys. */
   ACCESS_CERTS?: CertFetcher;
 }
 
 function accessConfig(env: Env): AccessConfig | null {
   return env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD ? { teamDomain: env.ACCESS_TEAM_DOMAIN, aud: env.ACCESS_AUD } : null;
+}
+
+function clearanceOf(person: string | null, env: Env): "teamlead" | "operator" {
+  const leads = (env.TEAM_LEADS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return person && leads.includes(person.toLowerCase()) ? "teamlead" : "operator";
 }
 
 /**
@@ -95,7 +105,10 @@ export default {
       // Only the Worker names the person; never pass on a copy the client sent.
       const headers = new Headers(request.headers);
       headers.delete(PERSON_HEADER);
+      headers.delete(CLEARANCE_HEADER);
       if (who.person) headers.set(PERSON_HEADER, who.person);
+      // With Access on, the role a person may take comes from TEAM_LEADS, not from the request.
+      if (accessConfig(env)) headers.set(CLEARANCE_HEADER, clearanceOf(who.person, env));
       const inner = new Request(request, { headers });
       if (env.EXERCISE) return env.EXERCISE.get(env.EXERCISE.idFromName(EXERCISE)).fetch(inner);
       local ??= new Exercise(new MemoryStore());

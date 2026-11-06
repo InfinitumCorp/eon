@@ -8,10 +8,17 @@ import type { Profile, Role } from "./types.ts";
  */
 export const PERSON_HEADER = "x-eon-person";
 
+/**
+ * Header the Worker sets, with Cloudflare Access on, to say which role the
+ * signed-in person may take. Absent in local runs, where any role goes.
+ */
+export const CLEARANCE_HEADER = "x-eon-clearance";
+
 const ROLES = new Set<Role>(["operator", "teamlead"]);
 const PROFILES = new Set<Profile>(["normal", "reduced", "silent"]);
 
 class BadRequest extends Error {}
+class Forbidden extends Error {}
 
 function json(body: unknown, status = 200) {
   return Response.json(body, { status, headers: { "cache-control": "no-store" } });
@@ -85,6 +92,11 @@ export async function handleEonRequest(request: Request, splat: string, exercise
   const path = splat.replace(/^\/+|\/+$/g, "");
   const url = new URL(request.url);
   const person = request.headers.get(PERSON_HEADER)?.trim().slice(0, 254) || null;
+  const clearance = request.headers.get(CLEARANCE_HEADER) === "teamlead" ? "teamlead" : request.headers.get(CLEARANCE_HEADER) ? "operator" : null;
+  const cleared = (r: Role): Role => {
+    if (r === "teamlead" && clearance === "operator") throw new Forbidden("Your sign-in is not cleared as team lead.");
+    return r;
+  };
   try {
     if (request.method === "GET") {
       if (path === "health" || path === "") {
@@ -103,8 +115,8 @@ export async function handleEonRequest(request: Request, splat: string, exercise
         );
       }
       if (path === "picture") {
-        const r = role(url.searchParams.get("role"));
-        return json({ ...(await exercise.read((eon) => eon.picture(r))), viewer: person });
+        const r = cleared(role(url.searchParams.get("role")));
+        return json({ ...(await exercise.read((eon) => eon.picture(r))), viewer: person, clearance });
       }
       if (path === "wrist") {
         const unitId = text(url.searchParams.get("unit"), "unit");
@@ -112,12 +124,12 @@ export async function handleEonRequest(request: Request, splat: string, exercise
         return json(result, result.ok ? 200 : 404);
       }
       if (path === "report") {
-        const r = role(url.searchParams.get("role"));
+        const r = cleared(role(url.searchParams.get("role")));
         const result = await exercise.read((eon) => eon.report(r));
         return json(result, result.ok ? 200 : 403);
       }
       if (path === "ledger") {
-        const r = role(url.searchParams.get("role"));
+        const r = cleared(role(url.searchParams.get("role")));
         if (r !== "teamlead") return json({ ok: false, error: "Only the team lead reads the ledger." }, 403);
         return json(
           await exercise.read(async (eon) => {
@@ -133,11 +145,13 @@ export async function handleEonRequest(request: Request, splat: string, exercise
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const parsed = parseAction(path, body);
     if (!parsed) return json({ ok: false, error: "Not found." }, 404);
+    cleared(parsed.role);
     const action: Action = person ? { ...parsed, by: person } : parsed;
     const outcome = await exercise.act(action);
     return json(outcome.body, outcome.status);
   } catch (error) {
     if (error instanceof BadRequest) return json({ ok: false, error: error.message }, 400);
+    if (error instanceof Forbidden) return json({ ok: false, error: error.message }, 403);
     return json({ ok: false, error: error instanceof Error ? error.message : "The exercise backend failed." }, 500);
   }
 }

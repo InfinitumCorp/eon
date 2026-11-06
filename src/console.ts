@@ -142,7 +142,9 @@ async function load() {
 
 function render() {
   const lead = role === "teamlead";
-  $("status").textContent = "Tick " + pic.tick + " · " + pic.time.slice(11, 16) + "Z · ledger " + (pic.ledgerOk ? "verified" : "BROKEN") + ", " + pic.ledgerLength + " entries" + (pic.viewer ? " · signed in as " + pic.viewer : "");
+  $("status").textContent = "Tick " + pic.tick + " · " + pic.time.slice(11, 16) + "Z · ledger " + (pic.ledgerOk ? "verified" : "BROKEN") + ", " + pic.ledgerLength + " entries" + (pic.viewer ? " · signed in as " + pic.viewer + (pic.clearance ? " (" + (pic.clearance === "teamlead" ? "team lead" : "operator") + ")" : "") : "");
+  // Roles locked by sign-in: only people cleared as team lead see the toggle.
+  document.querySelector('[data-role="teamlead"]').hidden = pic.clearance === "operator";
   $("reportBox").hidden = !lead;
   $("reset").hidden = !lead;
 
