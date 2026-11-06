@@ -65,6 +65,10 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
     }
     case "battery":
       return { op: "battery", role: r, unitId: text(body.unitId, "unitId") };
+    case "quarantine": {
+      if (typeof body.on !== "boolean") throw new BadRequest("on must be true or false.");
+      return { op: "quarantine", role: r, unitId: text(body.unitId, "unitId"), on: body.on };
+    }
     case "reset":
       return { op: "reset", role: r };
     default:
@@ -86,6 +90,7 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
  * POST /api/eon/decisions   { role, engagementId, decision: approve|reject, note? }   team lead only
  * POST /api/eon/scan        { role, unitId, mode: wide|economy }
  * POST /api/eon/battery     { role, unitId }          battery swap
+ * POST /api/eon/quarantine  { role, unitId, on }      team lead only: withhold a device's reports
  * POST /api/eon/reset       { role }                  team lead only
  */
 export async function handleEonRequest(request: Request, splat: string, exercise: Exercise): Promise<Response> {

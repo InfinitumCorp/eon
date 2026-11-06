@@ -52,6 +52,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
 .unit dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:12px 0;font-size:14px}
 .unit dt{color:var(--muted)}
 .unit dd{margin:0}
+.unit dd.hot{color:var(--accent)}
 .meter{height:4px;border-radius:2px;background:var(--line);overflow:hidden;margin-top:4px}
 .meter i{display:block;height:100%;background:var(--ink)}
 .meter.low i{background:var(--accent)}
@@ -190,6 +191,10 @@ function render() {
   // Units
   $("units").innerHTML = pic.units.map((u) => {
     const low = u.batteryPct < 25;
+    const h = u.health;
+    // Each failing on-device check, with what to do about it.
+    const failing = h.checks.filter((c) => !c.ok).map((c) =>
+      '<p class="small" style="margin:0 0 8px"><span class="tag hot">' + esc(c.label) + " · since tick " + c.since + "</span><br>" + esc(c.finding || "") + ". " + esc(c.recommendation || "") + "</p>").join("");
     const emcon = lead
       ? '<select data-emcon="' + u.id + '" aria-label="Emission control for ' + esc(u.callsign) + '">' + ["normal", "reduced", "silent"].map((p) => "<option" + (p === u.profile ? " selected" : "") + ">" + p + "</option>").join("") + "</select>"
       : esc(u.profile);
@@ -201,7 +206,11 @@ function render() {
       "<dt>Visible to</dt><dd>" + (u.detectableKm ? u.detectableKm + " km" : "not emitting") + (u.held ? " · " + u.held + " held" : "") + "</dd>" +
       "<dt>Scan</dt><dd>" + scan + "</dd>" +
       "<dt>Battery</dt><dd>" + Math.round(u.batteryPct) + "% · " + u.enduranceH + ' h<div class="meter' + (low ? " low" : "") + '"><i style="width:' + u.batteryPct + '%"></i></div></dd>' +
-      '</dl><button data-swap="' + u.id + '">Swap battery</button></div>';
+      "<dt>Device</dt><dd" + (h.band !== "healthy" ? ' class="hot"' : "") + ">" + h.score + "/100 · " + esc(h.band) + (h.quarantined ? " · quarantined" : "") + (u.withheld ? " · " + u.withheld + " withheld" : "") + "</dd>" +
+      "</dl>" + failing +
+      '<div class="bar"><button data-swap="' + u.id + '">Swap battery</button>' +
+      (lead ? '<button data-quarantine="' + u.id + '" data-on="' + String(!h.quarantined) + '"' + (h.band === "compromised" && !h.quarantined ? ' class="accent"' : "") + ">" + (h.quarantined ? "Restore reports" : "Quarantine") + "</button>" : "") +
+      "</div></div>";
   }).join("");
 }
 
@@ -239,6 +248,10 @@ document.addEventListener("click", async (ev) => {
     } else if (b.dataset.decide) {
       const r = await call("decisions", { engagementId: b.dataset.decide, decision: b.dataset.d });
       if (r.ok) toast(r.data.text);
+    } else if (b.dataset.quarantine) {
+      const on = b.dataset.on === "true";
+      const r = await call("quarantine", { unitId: b.dataset.quarantine, on });
+      if (r.ok) toast(r.data.callsign + (on ? " quarantined: its reports are withheld from the picture." : " restored to the picture."));
     } else if (b.dataset.swap) {
       const r = await call("battery", { unitId: b.dataset.swap });
       if (r.ok) toast(r.data.callsign + " battery swapped.");

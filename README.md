@@ -23,6 +23,7 @@ Product page: https://infinitum-corporation.vercel.app/products/eon
 | Rules of engagement | An engagement is refused if the track is friendly, not a drone, unlocated, has a stale fix, has not been heard in the last tick, is on an airframe already defeated, or (for link disruption) would reach a friendly or team band. Every refusal is on the ledger. |
 | Power management | Battery and endurance per wearer. Below 25% a wearer drops to economy scan (half the revisit, less drain); a battery swap restores wide scan. |
 | Wrist display | Each wearer gets a watch-sized page at `/wrist?unit=eon-1`: a north-up arrow and range to the nearest live hostile drone (located, heard in the last tick, airframe not yet defeated) with its error radius, the newest open alert with one-tap acknowledge, and link, nav and battery. It refreshes every 3 s. |
+| Device integrity | Each wearer's device checks itself every tick for a rooted or jailbroken OS, a debugger attached to the app, a hooking framework in the app, and an emulated environment. Only the outcome leaves the device: pass or fail per check and one 0–100 health score (root −40, hooking −35, emulator −30, debugger −25; healthy ≥ 90, degraded 60–89, compromised < 60). Each new failure raises an alert to that wearer and the team with a recommendation. The team lead can quarantine a device, which withholds its reports from the shared picture; the after-action report counts every tick a compromised device's reports still flowed. In the exercise the signals are scripted (ASH 1-2 has a debug session at ticks 2–3; ASH 1-4 is hooked and rooted from tick 5); on fielded hardware the same checks would read the OS's own attestation. |
 | After-action report | Exercise control scores the shared picture against ground truth: detection latency, classification, fix accuracy against the stated ellipse, link availability, drone warnings, engagement outcomes, friendly engagements and spoof detection time, plus lessons. |
 
 ### Scenario timeline (seed 7)
@@ -31,8 +32,10 @@ Product page: https://infinitum-corporation.vercel.app/products/eon
 |---|---|
 | 1 | Voice radio, data link, search radar and a friendly DAEMON™ MIL relay drone on the air. ASH 1-4 starts on a tired battery and drops to economy scan. |
 | 2 | Hostile drone (control and video links) appears to the east. |
+| 2–3 | A debug session is attached to ASH 1-2's device (health 75, degraded). |
 | 3–5 | Wideband noise on the L-band team link. ASH 1-2, the most exposed, hops to UHF. |
 | 4–6 | GNSS spoofing against ASH 1-3. |
+| 5 → | ASH 1-4's device is hooked and rooted (health 25, compromised) until the end. |
 | 8 | The hostile drone leaves if it has not been engaged. |
 
 ## Roles
@@ -42,7 +45,7 @@ Roles are locked to sign-ins. With Cloudflare Access on, only the emails in `TEA
 Who acts comes from Cloudflare Access: the Worker verifies the Access token (RS256 signature against the team's published keys, issuer, audience, expiry) on every request and refuses the request if it does not check out. The verified email is kept with each action in the log and written as `by` on every ledger entry a person caused, and engagements record who requested and who ordered or rejected them. The Worker strips any `x-eon-person` header a client sends, so no one can name themselves. Local runs have no Access and name no one.
 
 - **Operator**: sweep, acknowledge alerts, set scan mode, swap batteries, request engagements. Sees the ledger status, not its entries.
-- **Team lead**: everything above, plus EMCON, ordering or rejecting engagements, the ledger and the after-action report.
+- **Team lead**: everything above, plus EMCON, ordering or rejecting engagements, quarantining a device, the ledger and the after-action report.
 
 ## HTTP
 
@@ -60,6 +63,7 @@ Who acts comes from Cloudflare Access: the Worker verifies the Access token (RS2
 | POST | `/api/eon/ack` | `{ role, alertId }` |
 | POST | `/api/eon/engagements` | `{ role, track, method: disrupt\|handoff }` |
 | POST | `/api/eon/decisions` | `{ role, engagementId, decision: approve\|reject, note? }` (team lead) |
+| POST | `/api/eon/quarantine` | `{ role, unitId, on: true\|false }` (team lead) |
 | POST | `/api/eon/reset` | `{ role }` (team lead) |
 
 The console is served at `/` and the wrist display at `/wrist`.
@@ -93,6 +97,7 @@ src/lib/eon/ledger.ts      Private Ed25519-signed SHA-256 hash chain
 src/lib/eon/http.ts        HTTP contract: parses requests into actions
 src/lib/eon/exercise.ts    Action log, replay and the shared exercise session
 src/lib/eon/access.ts      Cloudflare Access token verification (who is acting)
+src/lib/eon/integrity.ts   On-device integrity checks, weights, recommendations, health score
 scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
 ```

@@ -127,6 +127,17 @@ export const WARDEN_TICKS = 2;
 /** GNSS spoofing script: the unit's GNSS fix is dragged east while active. */
 export const SPOOF = { unitId: "eon-3", from: 4, to: 7, metresPerTick: 150 };
 
+/**
+ * Scripted device-integrity findings, as each wearer's own checks would see them.
+ * ASH 1-2 has a debug session attached for two ticks (a maintenance cable left in).
+ * ASH 1-4 is hooked and rooted from tick 5 and stays compromised.
+ */
+export const INTEGRITY_EVENTS: { unitId: string; check: "root" | "debugger" | "hooking" | "emulator"; finding: string; from: number; to: number }[] = [
+  { unitId: "eon-2", check: "debugger", finding: "USB debug session on the E(O)N app", from: 2, to: 4 },
+  { unitId: "eon-4", check: "hooking", finding: "Code-injection framework loaded into the E(O)N app", from: 5, to: Infinity },
+  { unitId: "eon-4", check: "root", finding: "Privilege-escalation binary on the system partition", from: 5, to: Infinity },
+];
+
 /** Inertial drift per tick since the last trusted GNSS fix, metres. */
 export const INERTIAL_DRIFT = { x: 0.8, y: 0.6 };
 

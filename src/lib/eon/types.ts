@@ -1,3 +1,5 @@
+import type { DeviceHealth } from "./integrity.ts";
+
 /** Exercise grid position in metres. x grows east, y grows north. */
 export interface Point {
   x: number;
@@ -104,7 +106,7 @@ export interface Fix {
   bearings: number;
 }
 
-export type AlertKind = "drone" | "jamming" | "gnss" | "radar" | "engagement" | "power";
+export type AlertKind = "drone" | "jamming" | "gnss" | "radar" | "engagement" | "power" | "integrity";
 
 export type EngagementMethod = "disrupt" | "handoff";
 
@@ -155,6 +157,10 @@ export interface UnitView {
   batteryPct: number;
   /** Hours left at the current scan mode and profile. */
   enduranceH: number;
+  /** On-device integrity outcome: one health score and each check's result. */
+  health: DeviceHealth;
+  /** Detections withheld from the picture while the device was quarantined. */
+  withheld: number;
 }
 
 export interface EmitterScore {

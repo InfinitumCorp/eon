@@ -36,7 +36,7 @@ select{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8p
 button{font:inherit;font-size:14px;border-radius:999px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);padding:10px 16px;cursor:pointer;flex:none}
 button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button:disabled{opacity:.4;cursor:default}
-dl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 0}
+dl{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0 0}
 dl>div{border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;min-width:0}
 dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 dd{margin:2px 0 0;font-size:14px;overflow-wrap:anywhere}
@@ -84,6 +84,7 @@ dd.hot{color:var(--accent)}
     <div><dt>Link</dt><dd id="link">—</dd></div>
     <div><dt>Nav</dt><dd id="nav">—</dd></div>
     <div><dt>Battery</dt><dd id="batt">—</dd><div class="meter" id="meter"><i id="meterFill" style="width:0"></i></div></div>
+    <div><dt>Device</dt><dd id="device">—</dd></div>
   </dl>
 
   <p class="foot"><span id="clock">—</span> · Simulated exercise. Not for operational use. · <a href="/">Console</a></p>
@@ -135,6 +136,9 @@ function render(w) {
   $("batt").textContent = Math.round(u.batteryPct) + "% · " + u.enduranceH + " h";
   $("meterFill").style.width = Math.max(0, Math.min(100, u.batteryPct)) + "%";
   $("meter").classList.toggle("low", u.batteryPct < 25);
+  const h = u.health;
+  $("device").textContent = h.score + "/100 " + h.band + (h.quarantined ? " · quarantined" : "");
+  $("device").classList.toggle("hot", h.band !== "healthy");
   $("clock").textContent = u.callsign + " · tick " + w.tick + " · " + w.time.slice(11, 16) + "Z";
 }
 

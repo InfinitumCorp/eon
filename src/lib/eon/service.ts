@@ -1,3 +1,4 @@
+import { bandOf, CHECKS, type CheckResult, type DeviceHealth, type IntegrityCheck, scoreOf } from "./integrity.ts";
 import { Ledger } from "./ledger.ts";
 import { bearingDeg, classify, dbmToMw, distance, intersectBearings, makeRng, mwToDbm, pathLossDb, rangeForLossM } from "./rf.ts";
 import {
@@ -7,6 +8,7 @@ import {
   EXERCISE,
   FRIENDLY_REGISTRY,
   INERTIAL_DRIFT,
+  INTEGRITY_EVENTS,
   LINK_CLEAR_SINR_DB,
   LINK_MIN_SINR_DB,
   LINK_PATHS,
@@ -67,6 +69,14 @@ interface UnitState {
   battery: number;
   linkTicks: { clear: number; degraded: number; jammed: number };
   switches: number;
+  /** Failing integrity checks: check -> tick it started failing. */
+  failing: Map<IntegrityCheck, number>;
+  quarantined: boolean;
+  /** Detections withheld while quarantined. Never shared. */
+  withheld: number;
+  /** Ticks spent compromised, and of those, ticks with reports still flowing. */
+  compromisedTicks: number;
+  compromisedOpenTicks: number;
 }
 
 const CLASS_LABEL: Record<EmitterClass, string> = {
@@ -117,6 +127,8 @@ export class Eon {
   private seq = 0;
   private tracks: { id: string; freqMHz: number; emitterId: string }[] = [];
   private engagements: Engagement[] = [];
+  /** unit:check pairs that have an open integrity alert. */
+  private integrityAlerted = new Set<string>();
   /** Platform id -> tick from which it no longer emits. */
   private ended = new Map<string, number>();
 
@@ -143,6 +155,11 @@ export class Eon {
       battery: START_BATTERY[u.id] ?? 100,
       linkTicks: { clear: 0, degraded: 0, jammed: 0 },
       switches: 0,
+      failing: new Map(),
+      quarantined: false,
+      withheld: 0,
+      compromisedTicks: 0,
+      compromisedOpenTicks: 0,
     }));
   }
 
@@ -190,6 +207,7 @@ export class Eon {
     await this.resolveEngagements();
     const emitters = this.active();
     for (const unit of this.units) {
+      await this.attest(unit);
       await this.updateNav(unit);
       await this.updateLink(unit, emitters);
       unit.linkTicks[unit.link.status] += 1;
@@ -200,6 +218,80 @@ export class Eon {
     await this.updateFixes();
     await this.warn();
     return { ok: true, data: { tick: this.tick, alerts: this.alerts.slice(before) } };
+  }
+
+  /**
+   * Device integrity, run on the wearer's own device each tick. Only the
+   * outcome is shared: which checks fail and the health score.
+   */
+  private async attest(unit: UnitState) {
+    const now = new Set(
+      INTEGRITY_EVENTS.filter((e) => e.unitId === unit.id && this.tick >= e.from && this.tick < e.to).map((e) => e.check),
+    );
+    for (const spec of CHECKS) {
+      const was = unit.failing.has(spec.check);
+      const is = now.has(spec.check);
+      if (is && !was) unit.failing.set(spec.check, this.tick);
+      if (!is && was) unit.failing.delete(spec.check);
+    }
+    const score = scoreOf([...unit.failing.keys()]);
+    for (const spec of CHECKS) {
+      const pair = `${unit.id}:${spec.check}`;
+      const was = this.integrityAlerted.has(pair);
+      const is = unit.failing.has(spec.check);
+      if (is === was) continue;
+      if (is) {
+        this.integrityAlerted.add(pair);
+        const finding = INTEGRITY_EVENTS.find((e) => e.unitId === unit.id && e.check === spec.check)?.finding ?? spec.label;
+        const key = `int:${pair}`;
+        this.alertKeys.delete(key);
+        this.alert(
+          key,
+          "integrity",
+          unit.id,
+          `${unit.callsign} device integrity: ${spec.label.toLowerCase()} (${finding}). Health ${score}/100, ${bandOf(score)}. ${spec.recommendation}`,
+        );
+      } else {
+        this.integrityAlerted.delete(pair);
+      }
+      await this.record("integrity", unit.id, unit.callsign, { check: spec.check, ok: !is, score, band: bandOf(score) });
+    }
+    if (bandOf(score) === "compromised") {
+      unit.compromisedTicks += 1;
+      if (!unit.quarantined) unit.compromisedOpenTicks += 1;
+    }
+  }
+
+  private health(u: UnitState): DeviceHealth {
+    const score = scoreOf([...u.failing.keys()]);
+    const checks: CheckResult[] = CHECKS.map((spec) => {
+      const since = u.failing.get(spec.check) ?? null;
+      return {
+        check: spec.check,
+        label: spec.label,
+        ok: since === null,
+        since,
+        finding: since === null ? null : (INTEGRITY_EVENTS.find((e) => e.unitId === u.id && e.check === spec.check)?.finding ?? null),
+        recommendation: since === null ? null : spec.recommendation,
+      };
+    });
+    return { score, band: bandOf(score), checks, quarantined: u.quarantined };
+  }
+
+  /** Team lead only: withhold (or restore) a device's reports from the shared picture. */
+  async quarantine(role: Role, unitId: string, on: boolean): Promise<Result<UnitView>> {
+    if (role !== "teamlead") return { ok: false, error: "Only the team lead quarantines a device." };
+    const unit = this.units.find((u) => u.id === unitId);
+    if (!unit) return { ok: false, error: `No unit ${unitId}.` };
+    if (unit.quarantined === on) return { ok: true, data: this.view(unit) };
+    unit.quarantined = on;
+    // Reports held under silent EMCON by a device now distrusted are dropped, not released later.
+    if (on && unit.held.length) {
+      unit.withheld += unit.held.length;
+      unit.held.length = 0;
+    }
+    await this.record("quarantine", role, unit.callsign, { unitId, on, score: scoreOf([...unit.failing.keys()]) });
+    return { ok: true, data: this.view(unit) };
   }
 
   /** GNSS against inertial. A large disagreement means GNSS is not trusted. */
@@ -298,7 +390,9 @@ export class Eon {
         affiliation: affiliationOf(freqMHz, cls),
         from: { x: round(unit.reportedPos.x, 1), y: round(unit.reportedPos.y, 1) },
       };
-      if (unit.profile === "silent") unit.held.push(detection);
+      // Measurements are always taken (the exercise stays deterministic); a quarantined device's never reach the picture.
+      if (unit.quarantined) unit.withheld += 1;
+      else if (unit.profile === "silent") unit.held.push(detection);
       else await this.share(detection);
     }
   }
@@ -588,6 +682,11 @@ export class Eon {
     const silent = this.units.filter((u) => u.held.length);
     if (silent.length) lessons.push(`${silent.map((u) => u.callsign).join(", ")} still hold ${silent.reduce((n, u) => n + u.held.length, 0)} unshared detections.`);
     if (hostile.length && warned.length < hostile.length) lessons.push("Not every hostile drone link raised a warning.");
+    for (const u of this.units.filter((x) => x.compromisedOpenTicks > 0)) {
+      lessons.push(
+        `${u.callsign} failed its device integrity checks and its reports reached the picture for ${u.compromisedOpenTicks} tick${u.compromisedOpenTicks === 1 ? "" : "s"} while compromised. Quarantine a compromised device as soon as it is flagged.`,
+      );
+    }
     if (!lessons.length) lessons.push("No gaps found against ground truth.");
     return {
       ok: true,
@@ -659,6 +758,8 @@ export class Eon {
       scanAuto: u.scanAuto,
       batteryPct: round(u.battery, 1),
       enduranceH: round(this.enduranceH(u), 1),
+      health: this.health(u),
+      withheld: u.withheld,
     };
   }
 

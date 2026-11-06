@@ -14,6 +14,7 @@ export type Action = (
   | { op: "decide"; role: Role; engagementId: string; decision: "approve" | "reject"; note?: string }
   | { op: "scan"; role: Role; unitId: string; mode: ScanMode }
   | { op: "battery"; role: Role; unitId: string }
+  | { op: "quarantine"; role: Role; unitId: string; on: boolean }
   | { op: "reset"; role: Role }
 ) & {
   /** Signed-in person (Cloudflare Access) behind the action. Kept in the log so replay attributes it again. */
@@ -64,6 +65,10 @@ async function run(eon: Eon, a: Action): Promise<Outcome> {
     case "battery": {
       const r = await eon.swapBattery(a.role, a.unitId);
       return { status: r.ok ? 200 : 404, body: r };
+    }
+    case "quarantine": {
+      const r = await eon.quarantine(a.role, a.unitId, a.on);
+      return { status: r.ok ? 200 : a.role === "teamlead" ? 404 : 403, body: r };
     }
     case "reset":
       throw new Error("Reset is handled by the exercise, not applied.");
