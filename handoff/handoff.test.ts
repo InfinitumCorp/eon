@@ -31,7 +31,7 @@ test("the Python record prints the same brief", { skip: !python() && "no Python 
 });
 
 test("every route in the record exists, and the record lists every documented route", async () => {
-  const documented = [...readFileSync(here("../src/lib/eon/http.ts"), "utf8").matchAll(/^ \* (GET|POST) +(\/api\/eon\/[a-z]+)/gm)].map((m) => `${m[1]} ${m[2]}`);
+  const documented = [...readFileSync(here("../src/lib/eon/http.ts"), "utf8").matchAll(/^ \* (GET|POST) +(\/api\/eon\/[a-z/]+[a-z])/gm)].map((m) => `${m[1]} ${m[2]}`);
   assert.deepEqual(ts.API.map((r) => `${r.method} ${r.path}`).sort(), [...new Set(documented)].sort());
   const exercise = new Exercise(new MemoryStore());
   for (const r of ts.API) {

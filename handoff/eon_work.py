@@ -100,6 +100,7 @@ FILES = {
     "src/lib/eon/rf.ts": "Path loss, bearings, classifier, weighted bearing fusion.",
     "src/lib/eon/service.ts": "The exercise: sense, protect, conceal, share, counter-drone, power, integrity, report.",
     "src/lib/eon/integrity.ts": "On-device checks, weights, recommendations, health score.",
+    "src/lib/eon/service.ts#odinFeed": "Read-only ODIN°™ feed: emitter fixes as ODIN tracks and Lattice entities.",
     "src/lib/eon/ledger.ts": "Private Ed25519-signed SHA-256 hash chain.",
     "src/lib/eon/access.ts": "Cloudflare Access JWT verification.",
     "src/lib/eon/http.ts": "HTTP contract. Parses requests into actions and enforces clearance.",
@@ -126,6 +127,11 @@ API = [
         "method": "GET",
         "path": "/api/eon/wrist",
         "body": "query unit",
+    },
+    {
+        "method": "GET",
+        "path": "/api/eon/feed/odin",
+        "body": None,
     },
     {
         "method": "GET",
@@ -356,8 +362,13 @@ WORK = [
     },
     {
         "name": "ODIN°™ picture feed",
+        "done": True,
+        "detail": "GET /api/eon/feed/odin publishes every emitter fix as an ODIN track and a Lattice entity. Read-only; wearer positions, device health, EMCON and pending engagements stay inside the team.",
+    },
+    {
+        "name": "ODIN°™ pulls the feed",
         "done": False,
-        "detail": "E(O)N does not yet send its tracks and fixes to ODIN°™.",
+        "detail": "ODIN°™ is not deployed and does not call the feed yet. It would pull with a Cloudflare Access service token.",
     },
     {
         "name": "Real device checks",

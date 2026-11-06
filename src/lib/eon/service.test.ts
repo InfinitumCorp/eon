@@ -416,3 +416,49 @@ test("the Worker routes the API to one Durable Object and serves the console", a
   assert.equal((await worker.fetch(new Request("http://x/api/eon/wrist?unit=nope"), env)).status, 404);
   assert.equal((await worker.fetch(new Request("http://x/api/eon/wrist"), env)).status, 400);
 });
+
+test("the ODIN feed carries every emitter fix in ODIN's track and Lattice entity shapes, and nothing about the team", async () => {
+  const eon = await run(3);
+  const feed = await eon.odinFeed();
+  const fixes = (await eon.picture("teamlead")).fixes;
+  assert.equal(feed.tick, 3);
+  assert.equal(feed.tracks.length, fixes.length);
+  assert.deepEqual(feed.tracks.map((t) => t.id), fixes.map((f) => `eon-${f.track}`));
+  for (const t of feed.tracks) {
+    assert.deepEqual(Object.keys(t).sort(), ["classification", "confidence", "grid", "id", "name", "note", "source"]);
+    assert.match(t.grid, /^\d+, \d+$/);
+    assert.match(t.confidence, /^\d\.\d\d$/);
+    assert.equal(t.source, "E(O)N™");
+  }
+  const drone = feed.tracks.find((t) => t.id === "eon-T2440")!;
+  assert.match(drone.name, /^Hostile drone control link T2440$/);
+  assert.match(drone.note, /2440\.0\d MHz\. Hostile .* ±\d+ m \(95%\)\./);
+  assert.match(feed.tracks.find((t) => t.id === "eon-T915")!.name, /^Friendly/);
+  assert.deepEqual(feed.entities.map((e) => e.entityId), feed.tracks.map((t) => t.id));
+  assert.equal(feed.entities[0].ontology.template, "TRACK");
+  assert.equal(feed.ledgerOk, true);
+  assert.equal(feed.ledgerHead, eon.ledger.head);
+  const text = JSON.stringify(feed);
+  // No wearer callsign or unit id, and none of the team's own state.
+  for (const leak of ["ASH 1-", '"eon-1"', '"eon-2"', '"eon-3"', '"eon-4"', '"health"', '"batteryPct"', '"profile"', '"pos"']) {
+    assert.ok(!text.includes(leak), `feed leaks ${leak}`);
+  }
+
+  const req = await eon.engage("teamlead", "T2440", "disrupt");
+  await eon.sweep("operator");
+  const after = await eon.odinFeed();
+  assert.ok(after.tracks.find((t) => t.id === "eon-T2440")!.note.endsWith(`Airframe defeated (${req.data!.id}, effective).`));
+  assert.equal(after.tracks.find((t) => t.id === "eon-T2440")!.classification, "CUI");
+});
+
+test("GET /api/eon/feed/odin needs no role and is readable by an operator", async () => {
+  const exercise = new Exercise(new MemoryStore());
+  await exercise.act({ op: "sweep", role: "operator" });
+  await exercise.act({ op: "sweep", role: "operator" });
+  const res = await handleEonRequest(new Request("http://x/api/eon/feed/odin", { headers: { "x-eon-clearance": "operator" } }), "feed/odin", exercise);
+  assert.equal(res.status, 200);
+  const feed = await res.json();
+  assert.equal(feed.exercise, "QUIETFIELD");
+  assert.ok(feed.tracks.length > 0);
+  assert.equal((await handleEonRequest(new Request("http://x/api/eon/feed/other"), "feed/other", exercise)).status, 404);
+});

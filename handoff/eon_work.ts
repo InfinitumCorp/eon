@@ -70,6 +70,7 @@ export const FILES = {
   "src/lib/eon/rf.ts": "Path loss, bearings, classifier, weighted bearing fusion.",
   "src/lib/eon/service.ts": "The exercise: sense, protect, conceal, share, counter-drone, power, integrity, report.",
   "src/lib/eon/integrity.ts": "On-device checks, weights, recommendations, health score.",
+  "src/lib/eon/service.ts#odinFeed": "Read-only ODIN°™ feed: emitter fixes as ODIN tracks and Lattice entities.",
   "src/lib/eon/ledger.ts": "Private Ed25519-signed SHA-256 hash chain.",
   "src/lib/eon/access.ts": "Cloudflare Access JWT verification.",
   "src/lib/eon/http.ts": "HTTP contract. Parses requests into actions and enforces clearance.",
@@ -93,6 +94,7 @@ export const API: readonly Route[] = [
   { method: "GET", path: "/api/eon/health", body: null },
   { method: "GET", path: "/api/eon/picture", body: "query role" },
   { method: "GET", path: "/api/eon/wrist", body: "query unit" },
+  { method: "GET", path: "/api/eon/feed/odin", body: null },
   { method: "GET", path: "/api/eon/ledger", body: "query role=teamlead" },
   { method: "GET", path: "/api/eon/report", body: "query role=teamlead" },
   { method: "POST", path: "/api/eon/sweep", body: { role: "" } },
@@ -161,7 +163,17 @@ export const WORK: readonly WorkItem[] = [
   { name: "Console and wrist display", done: true, detail: "White console at /. Watch-sized wrist view at /wrist." },
   { name: "Deployed", done: true, detail: "Cloudflare Workers at eon.infinitumcorp.workers.dev behind Cloudflare Access." },
   { name: "CI", done: true, detail: "GitHub Actions runs npm test." },
-  { name: "ODIN°™ picture feed", done: false, detail: "E(O)N does not yet send its tracks and fixes to ODIN°™." },
+  {
+    name: "ODIN°™ picture feed",
+    done: true,
+    detail:
+      "GET /api/eon/feed/odin publishes every emitter fix as an ODIN track and a Lattice entity. Read-only; wearer positions, device health, EMCON and pending engagements stay inside the team.",
+  },
+  {
+    name: "ODIN°™ pulls the feed",
+    done: false,
+    detail: "ODIN°™ is not deployed and does not call the feed yet. It would pull with a Cloudflare Access service token.",
+  },
   { name: "Real device checks", done: false, detail: "No native wearable firmware or app. Integrity signals are scripted." },
 ];
 

@@ -46,6 +46,8 @@ import type {
   ScanMode,
   UnitView,
   WristThreat,
+  OdinFeed,
+  OdinTrack,
   WristView,
 } from "./types.ts";
 
@@ -829,6 +831,66 @@ export class Eon {
         alert: open.at(-1) ?? null,
         unacked: open.length,
       },
+    };
+  }
+
+  /**
+   * Read-only feed for ODIN°™: every located emitter as an ODIN track and a
+   * Lattice entity. Only emitter fixes leave E(O)N. Wearer positions, device
+   * health, EMCON and engagements under decision stay inside the team; the note
+   * says when an airframe has been defeated.
+   */
+  async odinFeed(): Promise<OdinFeed> {
+    const verify = await this.ledger.verify();
+    const defeatedBy = new Map<string | undefined, Engagement>();
+    for (const e of this.engagements) if (e.status === "effective" || e.status === "intercepted") defeatedBy.set(this.platformOf(e.track), e);
+    const tracks: OdinTrack[] = [...this.fixes.values()]
+      .sort((a, b) => a.track.localeCompare(b.track))
+      .map((fix) => {
+        const meta = this.tracks.find((t) => t.id === fix.track)!;
+        const heard = this.shared.filter((d) => d.track === fix.track);
+        const lastHeard = Math.max(-1, ...heard.map((d) => d.tick));
+        const latest = heard.filter((d) => d.tick === lastHeard);
+        const confidence = latest.length ? latest.reduce((n, d) => n + d.confidence, 0) / latest.length : 0;
+        const done = defeatedBy.get(this.platformOf(fix.track));
+        const affiliation = fix.affiliation === "unknown" ? "Unknown" : fix.affiliation === "hostile" ? "Hostile" : "Friendly";
+        const parts = [
+          `${round(meta.freqMHz, 2)} MHz.`,
+          `${affiliation} ${CLASS_LABEL[fix.cls].toLowerCase()}.`,
+          `Fix from ${fix.bearings} bearings at tick ${fix.tick}, ±${Math.round(fix.errorM)} m (95%).`,
+          this.tick - lastHeard > 1 ? `Last heard at tick ${lastHeard}.` : "",
+          done ? `Airframe defeated (${done.id}, ${done.status}).` : "",
+        ];
+        return {
+          id: `eon-${fix.track}`,
+          name: `${affiliation} ${CLASS_LABEL[fix.cls].toLowerCase()} ${fix.track}`,
+          source: "E(O)N™",
+          note: parts.filter(Boolean).join(" "),
+          grid: `${Math.round(fix.pos.x)}, ${Math.round(fix.pos.y)}`,
+          confidence: confidence.toFixed(2),
+          classification: "CUI",
+        };
+      });
+    return {
+      product: "E(O)N™ MIL",
+      exercise: EXERCISE,
+      tick: this.tick,
+      generatedAt: this.time,
+      frame: `${EXERCISE} grid: metres east and north of the exercise origin. Not ODIN's range grid; no mapping between them is assumed.`,
+      tracks,
+      entities: tracks.map((t) => ({
+        entityId: t.id,
+        description: t.note,
+        isLive: true,
+        aliases: [{ name: t.name }],
+        location: { grid: t.grid },
+        provenance: { source: t.source, dataType: "exercise-track" },
+        ontology: { platformType: "EXERCISE", specificType: t.name, template: "TRACK" },
+      })),
+      ledgerHead: this.ledger.head,
+      ledgerOk: verify.ok,
+      withheld: ["wearer positions", "device health", "EMCON profiles", "engagements awaiting a decision", "ledger entries"],
+      note: "Exercise data only. Synthetic emitters. No signal is modelled. Read-only: ODIN pulls this feed; E(O)N never writes into ODIN.",
     };
   }
 

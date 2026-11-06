@@ -80,6 +80,7 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
  * HTTP contract for the E(O)N™ MIL exercise backend.
  * GET  /api/eon/health
  * GET  /api/eon/picture?role=operator|teamlead
+ * GET  /api/eon/feed/odin                     read-only feed of emitter fixes for ODIN°™
  * GET  /api/eon/wrist?unit=eon-1                  one wearer's wrist display
  * GET  /api/eon/ledger?role=teamlead
  * GET  /api/eon/report?role=teamlead                after-action report
@@ -122,6 +123,9 @@ export async function handleEonRequest(request: Request, splat: string, exercise
       if (path === "picture") {
         const r = cleared(role(url.searchParams.get("role")));
         return json({ ...(await exercise.read((eon) => eon.picture(r))), viewer: person, clearance });
+      }
+      if (path === "feed/odin") {
+        return json(await exercise.read((eon) => eon.odinFeed()));
       }
       if (path === "wrist") {
         const unitId = text(url.searchParams.get("unit"), "unit");

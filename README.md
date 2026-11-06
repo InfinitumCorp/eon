@@ -24,6 +24,7 @@ Product page: https://infinitum-corporation.vercel.app/products/eon
 | Power management | Battery and endurance per wearer. Below 25% a wearer drops to economy scan (half the revisit, less drain); a battery swap restores wide scan. |
 | Wrist display | Each wearer gets a watch-sized page at `/wrist?unit=eon-1`: a north-up arrow and range to the nearest live hostile drone (located, heard in the last tick, airframe not yet defeated) with its error radius, the newest open alert with one-tap acknowledge, and link, nav and battery. It refreshes every 3 s. |
 | Device integrity | Each wearer's device checks itself every tick for a rooted or jailbroken OS, a debugger attached to the app, a hooking framework in the app, and an emulated environment. Only the outcome leaves the device: pass or fail per check and one 0–100 health score (root −40, hooking −35, emulator −30, debugger −25; healthy ≥ 90, degraded 60–89, compromised < 60). Each new failure raises an alert to that wearer and the team with a recommendation. The team lead can quarantine a device, which withholds its reports from the shared picture; the after-action report counts every tick a compromised device's reports still flowed. In the exercise the signals are scripted (ASH 1-2 has a debug session at ticks 2–3; ASH 1-4 is hooked and rooted from tick 5); on fielded hardware the same checks would read the OS's own attestation. |
+| ODIN°™ feed | `GET /api/eon/feed/odin` publishes every located emitter as an ODIN track (`id, name, source, note, grid, confidence, classification`) and as a Lattice entity, the two shapes ODIN already uses. Read-only: ODIN pulls; E(O)N never writes into ODIN. Only emitter fixes leave the team: wearer positions, device health, EMCON and engagements awaiting a decision stay inside. Grids are in the QUIETFIELD frame (metres); no mapping to ODIN's range grid is assumed. The feed cites the ledger head and tick it reflects. ODIN°™ is not deployed yet, so nothing pulls it today; it would use a Cloudflare Access service token. |
 | After-action report | Exercise control scores the shared picture against ground truth: detection latency, classification, fix accuracy against the stated ellipse, link availability, drone warnings, engagement outcomes, friendly engagements and spoof detection time, plus lessons. |
 
 ### Scenario timeline (seed 7)
@@ -54,6 +55,7 @@ Who acts comes from Cloudflare Access: the Worker verifies the Access token (RS2
 | GET | `/api/eon/health` | — |
 | GET | `/api/eon/picture` | `?role=operator\|teamlead` |
 | GET | `/api/eon/wrist` | `?unit=eon-1` (one wearer's wrist view) |
+| GET | `/api/eon/feed/odin` | — (read-only feed for ODIN°™) |
 | GET | `/api/eon/ledger` | `?role=teamlead` |
 | GET | `/api/eon/report` | `?role=teamlead` |
 | POST | `/api/eon/sweep` | `{ role }` |

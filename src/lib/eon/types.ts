@@ -259,6 +259,49 @@ export interface WristView {
   unacked: number;
 }
 
+/**
+ * A track in the shape ODIN°™ uses for its own picture (TrackView), so
+ * ODIN can show E(O)N fixes beside its tracks without a mapping layer.
+ */
+export interface OdinTrack {
+  id: string;
+  name: string;
+  source: string;
+  note: string;
+  /** "x, y" in the QUIETFIELD grid, metres east and north. */
+  grid: string;
+  /** Mean classifier confidence of the track's latest detections, two places. */
+  confidence: string;
+  classification: "CUI" | "SECRET" | "TS";
+}
+
+/** The same track in the Lattice entity shape ODIN already projects to. */
+export interface OdinEntity {
+  entityId: string;
+  description: string;
+  isLive: true;
+  aliases: Array<{ name: string }>;
+  location: { grid: string };
+  provenance: { source: string; dataType: "exercise-track" };
+  ontology: { platformType: "EXERCISE"; specificType: string; template: "TRACK" };
+}
+
+/** Read-only feed of E(O)N emitter fixes for ODIN°™ to pull. */
+export interface OdinFeed {
+  product: string;
+  exercise: string;
+  tick: number;
+  generatedAt: string;
+  frame: string;
+  tracks: OdinTrack[];
+  entities: OdinEntity[];
+  /** Ledger state this feed reflects. */
+  ledgerHead: string;
+  ledgerOk: boolean;
+  withheld: string[];
+  note: string;
+}
+
 export interface Result<T = unknown> {
   ok: boolean;
   error?: string;
