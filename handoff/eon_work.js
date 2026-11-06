@@ -18,10 +18,8 @@ export const PRODUCT = "E(O)N™ MIL";
 export const PARENT = "ODIN°™";
 export const URL = "https://eon.infinitumcorp.workers.dev";
 
-
-
 /** Exercise roles. With Cloudflare Access on, team lead is limited to the TEAM_LEADS list. */
-export const ROLES                                    = {
+export const ROLES = {
   operator: {
     may: "Sweep, acknowledge alerts, set scan mode, swap batteries, request engagements. Sees the ledger status, not its entries.",
   },
@@ -46,7 +44,7 @@ export const RULES = {
   deviceIntegrity:
     "Checks run on each wearer's device; only pass or fail per check and one health score leave it. In this exercise the signals are scripted. A browser cannot inspect a real phone.",
   host: "Cloudflare Workers, project eon, one Durable Object. Deployed behind Cloudflare Access.",
-}         ;
+};
 
 export const COMMITS = [
   { sha: "80763e7", did: "Exercise backend, RF model, counter-drone, power, after-action report, ledger and console." },
@@ -60,7 +58,7 @@ export const COMMITS = [
   { sha: "7259190", did: "Team lead role locked to named sign-ins." },
   { sha: "32a8421", did: "On-device integrity checks with one health score and quarantine." },
   { sha: "0be9a36", did: "BUILD_RULES: Conductor renamed :\\ARCHITECT\\™." },
-]         ;
+];
 
 export const FILES = {
   "src/worker.ts": "Cloudflare Worker entry. Verifies Access, sets the person and clearance, routes to the Durable Object.",
@@ -80,17 +78,9 @@ export const FILES = {
   "scripts/seeds.ts": "Fix-ellipse calibration across 100 seeds.",
   "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience and TEAM_LEADS.",
   ".github/workflows/test.yml": "CI: npm test.",
-}         ;
+};
 
-
-
-
-
-
-
-
-
-export const API                   = [
+export const API = [
   { method: "GET", path: "/api/eon/health", body: null },
   { method: "GET", path: "/api/eon/picture", body: "query role" },
   { method: "GET", path: "/api/eon/wrist", body: "query unit" },
@@ -112,7 +102,7 @@ export const API                   = [
   { method: "POST", path: "/api/eon/reset", body: { role: "teamlead" } },
 ];
 
-export const PAGES = { "/": "Console", "/wrist?unit=eon-1": "Wrist display for one wearer" }         ;
+export const PAGES = { "/": "Console", "/wrist?unit=eon-1": "Wrist display for one wearer" };
 
 /** Exercise QUIETFIELD with seed 7, tick by tick. Ticks are 30 s from 06:00Z. */
 export const SCENARIO = [
@@ -123,7 +113,7 @@ export const SCENARIO = [
   { tick: "4-6", event: "GNSS spoofing against ASH 1-3. It holds on inertial." },
   { tick: "5 on", event: "ASH 1-4's device is hooked and rooted: health 25, compromised." },
   { tick: "8", event: "The hostile drone leaves if it has not been engaged." },
-]         ;
+];
 
 /** Device integrity checks and what each costs the 100-point health score. */
 export const CHECKS = [
@@ -131,7 +121,7 @@ export const CHECKS = [
   { check: "hooking", weight: 35 },
   { check: "emulator", weight: 30 },
   { check: "debugger", weight: 25 },
-]         ;
+];
 
 export const LEDGER = {
   signature: "Ed25519",
@@ -139,15 +129,9 @@ export const LEDGER = {
   store: "Rebuilt by replaying the action log in Durable Object storage. Same seed and log, same hashes.",
   by: "Entries a signed-in person caused carry payload.by with their verified email.",
   reader: "Team lead only. Operators see that the chain verifies, not its entries.",
-}         ;
+};
 
-
-
-
-
-
-
-export const WORK                      = [
+export const WORK = [
   { name: "Sense and classify", done: true, detail: "Log-distance path loss, 3° bearing noise, nearest-centroid classifier with confidence." },
   { name: "Cooperative geolocation", done: true, detail: "Range-weighted least squares with a 95% error radius, calibrated at 96% over 100 seeds." },
   { name: "Link protection", done: true, detail: "Noise rise measured on every team-link path; hop below 6 dB SINR, return at 12 dB." },

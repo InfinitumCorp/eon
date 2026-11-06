@@ -10,10 +10,14 @@ import * as work from "../handoff/eon_work.ts";
 const dir = fileURLToPath(new URL("../handoff/", import.meta.url));
 
 export function renderJs(): string {
-  const ts = readFileSync(`${dir}eon_work.ts`, "utf8");
+  // Normalise line endings first: a Windows checkout has CRLF, CI has LF.
+  const ts = readFileSync(`${dir}eon_work.ts`, "utf8").replace(/\r\n/g, "\n");
   const js = stripTypeScriptTypes(ts, { mode: "strip" })
     // Collapse the blank lines left where type-only declarations were removed.
     .replace(/[ \t]+$/gm, "")
+    // Close the gaps left where annotations such as `: Record<...>` and `as const` were.
+    .replace(/(\S) {2,}=/g, "$1 =")
+    .replace(/ +;$/gm, ";")
     .replace(/\n{3,}/g, "\n\n");
   return js.replace("./eon_work.ts", "./eon_work.js").replace("This file models", "Generated from eon_work.ts by scripts/handoff.ts. This file models");
 }
