@@ -6,6 +6,8 @@ It runs one simulated team of four wearers through Exercise QUIETFIELD: listen t
 
 This is a simulation. It is not for operational use. All emitters, frequencies and signal features are synthetic placeholders, not a threat library. Counter-drone engagements are decisions and recorded outcomes. No signal is modelled or generated.
 
+Live: https://eon.infinitumcorp.workers.dev
+
 Product page: https://infinitum-corporation.vercel.app/products/eon
 
 ## What it does
@@ -86,14 +88,15 @@ scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
 ```
 
-State lives in the Worker isolate's memory, as in ODIN°™. An isolate restart resets the exercise. Move it to a Durable Object if a session must survive restarts or be shared across isolates.
+State lives in the Worker isolate's memory, as in ODIN°™. An isolate restart resets the exercise, and two visitors routed to different isolates see different exercises. Move it to a Durable Object if a session must survive restarts or be shared across isolates.
 
 ## Cloudflare
 
 - Project name: `eon`
+- Production URL: https://eon.infinitumcorp.workers.dev (account subdomain `infinitumcorp`)
 - Config: `wrangler.toml`
 - Worker entry: `src/worker.ts`
-- Deploy, once a Cloudflare API token is available:
+- Deploy (after `npx wrangler login`, or with `CLOUDFLARE_API_TOKEN` set):
 
 ```bash
 npx wrangler deploy

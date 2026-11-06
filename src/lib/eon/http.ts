@@ -50,7 +50,7 @@ export async function handleEonRequest(request: Request, splat: string): Promise
           exercise: EXERCISE,
           tick: eon.tick,
           ledger,
-          note: "Simulated exercise. Not for operational use. Electronic support and protection only. Private ledger. No data sale.",
+          note: "Simulated exercise. Not for operational use. Counter-drone engagements are recorded decisions; no signal is modelled. Private ledger. No data sale.",
         });
       }
       if (path === "picture") return json(await eon.picture(role(url.searchParams.get("role"))));

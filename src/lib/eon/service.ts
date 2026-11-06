@@ -94,7 +94,8 @@ function overlaps(e: EmitterTruth, freqMHz: number, halfWidthMHz: number) {
  * One simulated team of four wearers in Exercise QUIETFIELD:
  * sense the spectrum, protect the team link, control each wearer's
  * signature and share detections into a common picture.
- * Simulation only. Electronic support and protection only; it models no attack.
+ * Simulation only. Counter-drone engagements are decisions with recorded outcomes;
+ * no jamming or other signal is modelled or generated.
  */
 export class Eon {
   tick = 0;
