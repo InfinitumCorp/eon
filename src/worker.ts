@@ -1,7 +1,8 @@
 import { CONSOLE_HTML } from "./console.ts";
 import { WRIST_HTML } from "./wrist.ts";
 import { type DurableStorageLike, DurableStore, Exercise, MemoryStore } from "./lib/eon/exercise.ts";
-import { handleEonRequest } from "./lib/eon/http.ts";
+import { type AccessConfig, type CertFetcher, verifyAccessJwt } from "./lib/eon/access.ts";
+import { handleEonRequest, PERSON_HEADER } from "./lib/eon/http.ts";
 import { EXERCISE } from "./lib/eon/scenario.ts";
 
 interface DurableObjectNamespaceLike {
@@ -12,6 +13,33 @@ interface DurableObjectNamespaceLike {
 interface Env {
   /** Durable Object holding the one shared exercise. Absent in local Node runs. */
   EXERCISE?: DurableObjectNamespaceLike;
+  /** Cloudflare Access team domain, e.g. small-band-b1e1.cloudflareaccess.com. With ACCESS_AUD, turns on token checks. */
+  ACCESS_TEAM_DOMAIN?: string;
+  /** Audience tag of the Access application in front of this Worker. */
+  ACCESS_AUD?: string;
+  /** Tests only: where to get Access signing keys. */
+  ACCESS_CERTS?: CertFetcher;
+}
+
+function accessConfig(env: Env): AccessConfig | null {
+  return env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD ? { teamDomain: env.ACCESS_TEAM_DOMAIN, aud: env.ACCESS_AUD } : null;
+}
+
+/**
+ * Who is making this request. With Access configured, the Access JWT must
+ * verify or the request is refused; without it (local runs) no one is named.
+ */
+async function identify(request: Request, env: Env): Promise<{ ok: true; person: string | null } | { ok: false; error: string }> {
+  const cfg = accessConfig(env);
+  if (!cfg) return { ok: true, person: null };
+  const token = request.headers.get("cf-access-jwt-assertion");
+  if (!token) return { ok: false, error: "Sign in through Cloudflare Access." };
+  try {
+    const r = await verifyAccessJwt(token, cfg, env.ACCESS_CERTS);
+    return r.ok ? { ok: true, person: r.email } : r;
+  } catch {
+    return { ok: false, error: "Could not check the Access sign-in. Try again." };
+  }
 }
 
 const PREFIX = "/api/eon";
@@ -60,11 +88,18 @@ let local: Exercise | null = null;
 export default {
   async fetch(request: Request, env: Env = {}): Promise<Response> {
     const url = new URL(request.url);
+    const who = await identify(request, env);
+    if (!who.ok) return Response.json({ ok: false, error: who.error }, { status: 403, headers: { "cache-control": "no-store" } });
     const splat = splatOf(url);
     if (splat !== null) {
-      if (env.EXERCISE) return env.EXERCISE.get(env.EXERCISE.idFromName(EXERCISE)).fetch(request);
+      // Only the Worker names the person; never pass on a copy the client sent.
+      const headers = new Headers(request.headers);
+      headers.delete(PERSON_HEADER);
+      if (who.person) headers.set(PERSON_HEADER, who.person);
+      const inner = new Request(request, { headers });
+      if (env.EXERCISE) return env.EXERCISE.get(env.EXERCISE.idFromName(EXERCISE)).fetch(inner);
       local ??= new Exercise(new MemoryStore());
-      return handleEonRequest(request, splat, local);
+      return handleEonRequest(inner, splat, local);
     }
     const page = request.method === "GET" ? PAGES[url.pathname] : undefined;
     if (page) return new Response(page, { headers: PAGE_HEADERS });

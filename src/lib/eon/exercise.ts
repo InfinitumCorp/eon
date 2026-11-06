@@ -6,7 +6,7 @@ import type { EngagementMethod, Profile, Role, ScanMode } from "./types.ts";
  * its seed, so the ordered action log is the whole state: replaying it rebuilds
  * the same picture after a restart or an eviction.
  */
-export type Action =
+export type Action = (
   | { op: "sweep"; role: Role }
   | { op: "emcon"; role: Role; unitId: string; profile: Profile }
   | { op: "ack"; role: Role; alertId: string }
@@ -14,7 +14,11 @@ export type Action =
   | { op: "decide"; role: Role; engagementId: string; decision: "approve" | "reject"; note?: string }
   | { op: "scan"; role: Role; unitId: string; mode: ScanMode }
   | { op: "battery"; role: Role; unitId: string }
-  | { op: "reset"; role: Role };
+  | { op: "reset"; role: Role }
+) & {
+  /** Signed-in person (Cloudflare Access) behind the action. Kept in the log so replay attributes it again. */
+  by?: string;
+};
 
 export interface Outcome {
   status: number;
@@ -23,6 +27,15 @@ export interface Outcome {
 
 /** Run one action against an exercise and map it to an HTTP status. */
 export async function applyAction(eon: Eon, a: Action): Promise<Outcome> {
+  eon.person = a.by ?? null;
+  try {
+    return await run(eon, a);
+  } finally {
+    eon.person = null;
+  }
+}
+
+async function run(eon: Eon, a: Action): Promise<Outcome> {
   switch (a.op) {
     case "sweep": {
       const r = await eon.sweep(a.role);

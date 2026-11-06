@@ -121,6 +121,10 @@ export interface Engagement {
   method: EngagementMethod;
   status: EngagementStatus;
   requestedBy: Role;
+  /** Signed-in person who requested it (Cloudflare Access), when known. */
+  requestedByPerson: string | null;
+  /** Signed-in person who ordered or rejected it, when known. */
+  decidedBy: string | null;
   tick: number;
   outcomeTick: number | null;
   text: string;
@@ -215,6 +219,8 @@ export interface Picture {
   ledgerLength: number;
   ledgerHead: string;
   ledger: LedgerEntry[];
+  /** Who is looking, from Cloudflare Access; null for local runs. */
+  viewer?: string | null;
 }
 
 /** The nearest live hostile drone as seen from one wearer. */

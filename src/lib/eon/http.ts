@@ -2,6 +2,12 @@ import { type Action, Exercise } from "./exercise.ts";
 import { EXERCISE } from "./scenario.ts";
 import type { Profile, Role } from "./types.ts";
 
+/**
+ * Header the Worker sets, after verifying Cloudflare Access, to tell the
+ * Durable Object who is acting. The Worker strips any copy a client sends.
+ */
+export const PERSON_HEADER = "x-eon-person";
+
 const ROLES = new Set<Role>(["operator", "teamlead"]);
 const PROFILES = new Set<Profile>(["normal", "reduced", "silent"]);
 
@@ -78,6 +84,7 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
 export async function handleEonRequest(request: Request, splat: string, exercise: Exercise): Promise<Response> {
   const path = splat.replace(/^\/+|\/+$/g, "");
   const url = new URL(request.url);
+  const person = request.headers.get(PERSON_HEADER)?.trim().slice(0, 254) || null;
   try {
     if (request.method === "GET") {
       if (path === "health" || path === "") {
@@ -97,7 +104,7 @@ export async function handleEonRequest(request: Request, splat: string, exercise
       }
       if (path === "picture") {
         const r = role(url.searchParams.get("role"));
-        return json(await exercise.read((eon) => eon.picture(r)));
+        return json({ ...(await exercise.read((eon) => eon.picture(r))), viewer: person });
       }
       if (path === "wrist") {
         const unitId = text(url.searchParams.get("unit"), "unit");
@@ -124,8 +131,9 @@ export async function handleEonRequest(request: Request, splat: string, exercise
     if (request.method !== "POST") return json({ ok: false, error: "Not found." }, 404);
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const action = parseAction(path, body);
-    if (!action) return json({ ok: false, error: "Not found." }, 404);
+    const parsed = parseAction(path, body);
+    if (!parsed) return json({ ok: false, error: "Not found." }, 404);
+    const action: Action = person ? { ...parsed, by: person } : parsed;
     const outcome = await exercise.act(action);
     return json(outcome.body, outcome.status);
   } catch (error) {

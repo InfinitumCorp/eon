@@ -103,6 +103,11 @@ function overlaps(e: EmitterTruth, freqMHz: number, halfWidthMHz: number) {
  */
 export class Eon {
   tick = 0;
+  /**
+   * The signed-in person behind the action being applied, from Cloudflare
+   * Access. Set only while one action runs; null for local runs.
+   */
+  person: string | null = null;
   private units: UnitState[];
   private shared: Detection[] = [];
   private fixes = new Map<string, Fix>();
@@ -152,7 +157,9 @@ export class Eon {
   }
 
   private record(type: string, actor: string, subject: string, payload: Record<string, unknown>) {
-    return this.ledger.append({ timestamp: this.time, type, actor, subject, payload });
+    // A person stands behind role actions only; unit, team and control entries are the system's own.
+    const by = this.person && (actor === "operator" || actor === "teamlead") ? { by: this.person } : {};
+    return this.ledger.append({ timestamp: this.time, type, actor, subject, payload: { ...payload, ...by } });
   }
 
   private nextId(prefix: string) {
@@ -423,6 +430,8 @@ export class Eon {
       method,
       status: "requested",
       requestedBy: role,
+      requestedByPerson: this.person,
+      decidedBy: role === "teamlead" ? this.person : null,
       tick: this.tick,
       outcomeTick: null,
       text: `${role === "teamlead" ? "Team lead" : "Operator"} requested ${method === "disrupt" ? "link disruption" : "WARDEN™ hand-off"} on ${track}.`,
@@ -440,6 +449,7 @@ export class Eon {
     if (!engagement) return { ok: false, error: `No engagement ${engagementId}.` };
     if (engagement.status !== "requested") return { ok: false, error: `${engagementId} is already ${engagement.status}.` };
     if (decision === "reject") {
+      engagement.decidedBy = this.person;
       engagement.status = "rejected";
       engagement.text = `Team lead rejected ${engagement.method} on ${engagement.track}.${note ? ` ${note}` : ""}`;
       await this.record("engagement", role, engagement.track, { id: engagement.id, status: "rejected", note: note ?? null });
@@ -447,6 +457,7 @@ export class Eon {
     }
     const refused = this.roeCheck(engagement.track, engagement.method);
     if (refused) return { ok: false, error: refused };
+    engagement.decidedBy = this.person;
     return this.order(engagement);
   }
 

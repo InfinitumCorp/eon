@@ -142,7 +142,7 @@ async function load() {
 
 function render() {
   const lead = role === "teamlead";
-  $("status").textContent = "Tick " + pic.tick + " · " + pic.time.slice(11, 16) + "Z · ledger " + (pic.ledgerOk ? "verified" : "BROKEN") + ", " + pic.ledgerLength + " entries";
+  $("status").textContent = "Tick " + pic.tick + " · " + pic.time.slice(11, 16) + "Z · ledger " + (pic.ledgerOk ? "verified" : "BROKEN") + ", " + pic.ledgerLength + " entries" + (pic.viewer ? " · signed in as " + pic.viewer : "");
   $("reportBox").hidden = !lead;
   $("reset").hidden = !lead;
 
@@ -181,7 +181,9 @@ function render() {
   $("engagements").innerHTML = pic.engagements.length ? pic.engagements.map((e) =>
     '<li><div class="row"><span class="tag ' + (e.status === "requested" ? "hot" : "") + '">' + esc(e.id) + " · " + esc(e.method) + " · " + esc(e.status) + "</span>" +
     (lead && e.status === "requested" ? '<div class="bar"><button class="accent" data-decide="' + e.id + '" data-d="approve">Order</button><button data-decide="' + e.id + '" data-d="reject">Reject</button></div>' : "") +
-    "</div><div>" + esc(e.text) + "</div></li>").join("") : '<li class="empty">No engagements.</li>';
+    "</div><div>" + esc(e.text) + "</div>" +
+    (e.requestedByPerson || e.decidedBy ? '<div class="small">' + [e.requestedByPerson ? "Requested by " + esc(e.requestedByPerson) : "", e.decidedBy ? (e.status === "rejected" ? "Rejected by " : "Ordered by ") + esc(e.decidedBy) : ""].filter(Boolean).join(" · ") + "</div>" : "") +
+    "</li>").join("") : '<li class="empty">No engagements.</li>';
 
   // Units
   $("units").innerHTML = pic.units.map((u) => {

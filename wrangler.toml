@@ -3,6 +3,12 @@ main = "src/worker.ts"
 compatibility_date = "2026-11-05"
 compatibility_flags = ["nodejs_compat"]
 
+# Cloudflare Access in front of this Worker. The Worker verifies the Access
+# token on every request and records the signed-in person on the ledger.
+[vars]
+ACCESS_TEAM_DOMAIN = "small-band-b1e1.cloudflareaccess.com"
+ACCESS_AUD = "bccb174669026677dfb5aeaca0072e6a8a2409591b798ab49b6ce548f9be7d66"
+
 [[durable_objects.bindings]]
 name = "EXERCISE"
 class_name = "EonExercise"
