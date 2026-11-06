@@ -94,6 +94,7 @@ State lives in the Worker isolate's memory, as in ODIN°™. An isolate restart 
 
 - Project name: `eon`
 - Production URL: https://eon.infinitumcorp.workers.dev (account subdomain `infinitumcorp`)
+- Access: Cloudflare Access protects every Worker on the account (production and previews) with the "Cloudflare account" policy, so only members of the Cloudflare account can sign in. Add people under Manage Account → Members, or change the policy in Zero Trust.
 - Config: `wrangler.toml`
 - Worker entry: `src/worker.ts`
 - Deploy (after `npx wrangler login`, or with `CLOUDFLARE_API_TOKEN` set):
