@@ -184,7 +184,7 @@ export const WORK: readonly WorkItem[] = [
     name: "Supabase backend",
     done: false,
     detail:
-      "Migration applied to the Infinitum Corp project (version 20261107195730). Not live yet: eon is not an exposed API schema and SUPABASE_SERVICE_ROLE_KEY is not set as a Worker secret.",
+      "Migration applied to the Infinitum Corp project (version 20261107195730). eon is an exposed Data API schema (anon and authenticated still denied). Not live yet: SUPABASE_SERVICE_ROLE_KEY is not set as a Worker secret.",
   },
   {
     name: "ODIN°™ pulls the feed",
