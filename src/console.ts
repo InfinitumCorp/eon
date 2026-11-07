@@ -1,7 +1,9 @@
 /**
  * E(O)N™ MIL exercise console. One static page; it talks to /api/eon/*.
- * Styled to BUILD_RULES.md: white, Helvetica, one accent, no gradients.
+ * Uses the shared Infinitum app shell (inlined: the CSP allows inline styles only).
  */
+import { appShellCss } from "./app-shell-css.ts";
+
 export const CONSOLE_HTML = /* html */ `<!doctype html>
 <html lang="en">
 <head>
@@ -10,33 +12,31 @@ export const CONSOLE_HTML = /* html */ `<!doctype html>
 <title>E(O)N™ MIL · Exercise QUIETFIELD</title>
 <meta name="description" content="E(O)N™ MIL exercise console. Simulated. Not for operational use.">
 <style>
-:root{--ink:#111820;--muted:#52606b;--line:#d6dce1;--accent:#2454dd;--paper:#fff;--soft:#f5f7f8;--m-ease:cubic-bezier(.22,1,.36,1)}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif}
-sup{font-size:.6em}
-.wrap{max-width:1120px;margin:0 auto;padding:24px 16px 64px}
-header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--line)}
-.mark{font-weight:500;font-size:22px;letter-spacing:0}
-h1{font-weight:400;font-size:40px;letter-spacing:-.065em;margin:4px 0 0;line-height:1.1}
-h2{font-weight:400;font-size:22px;letter-spacing:-.02em;margin:0 0 16px}
-.small{font-size:12px;color:var(--muted)}
+${appShellCss}
+</style>
+<style>
+:root{--soft:var(--paper);--m-ease:var(--ease)}
 .lead{font-size:18px;letter-spacing:-.015em;color:var(--muted);margin:8px 0 0}
+.small{font-size:12px;color:var(--muted)}
+.console-head{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--line)}
+.console-head h1{margin:0;font-size:var(--title)}
+h2{font-size:22px;letter-spacing:-.02em;margin:0 0 16px}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-button,select{font:inherit;font-size:14px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:8px 16px;cursor:pointer;transition:border-color .15s var(--m-ease),background .15s var(--m-ease)}
-select{border-radius:8px;padding:6px 8px}
-button:hover{border-color:var(--ink)}
-button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button,select{font:inherit;font-size:14px;border-radius:0;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:8px 16px;cursor:pointer;transition:border-color .15s var(--m-ease),background .15s var(--m-ease)}
+select{padding:6px 8px}
+button:hover{border-color:var(--accent);color:var(--accent)}
 button.primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
-button.accent{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+button.primary:hover,button.accent:hover{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+button.accent{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 button:disabled{opacity:.4;cursor:default}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px}
+.seg{display:inline-flex;border:1px solid var(--line);padding:2px}
 .seg button{border:0;padding:6px 14px}
 .seg button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
 .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;margin-top:24px}
-@media (max-width:860px){.grid{grid-template-columns:1fr}h1{font-size:32px}}
-section{border:1px solid var(--line);border-radius:12px;padding:24px;min-width:0}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+section{border:1px solid var(--line);padding:24px;min-width:0}
 .full{grid-column:1/-1}
-svg{width:100%;height:auto;display:block;border-radius:8px;background:var(--soft)}
+svg{width:100%;height:auto;display:block;background:var(--paper);border:1px solid var(--line)}
 ul{list-style:none;margin:0;padding:0}
 li{padding:12px 0;border-top:1px solid var(--line)}
 li:first-child{border-top:0;padding-top:0}
@@ -48,30 +48,37 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th{font-weight:400;color:var(--muted);font-size:12px;text-align:left;padding:0 8px 8px 0}
 td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middle}
 .units{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
-.unit{border:1px solid var(--line);border-radius:12px;padding:16px}
+.unit{border:1px solid var(--line);padding:16px}
 .unit dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:12px 0;font-size:14px}
 .unit dt{color:var(--muted)}
 .unit dd{margin:0}
 .unit dd.hot{color:var(--accent)}
-.meter{height:4px;border-radius:2px;background:var(--line);overflow:hidden;margin-top:4px}
+.meter{height:4px;background:var(--line);overflow:hidden;margin-top:4px}
 .meter i{display:block;height:100%;background:var(--ink)}
 .meter.low i{background:var(--accent)}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px);opacity:0;transition:opacity .2s var(--m-ease);pointer-events:none}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;font-size:14px;max-width:calc(100% - 32px);opacity:0;transition:opacity .2s var(--m-ease);pointer-events:none}
 .toast.show{opacity:1}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-bottom:16px}
 .kpi b{display:block;font-weight:400;font-size:28px;letter-spacing:-.04em}
-.empty{color:var(--muted);font-size:14px}
+.empty{color:var(--muted);font-size:14px;padding:0;border:0;text-align:left}
 .tablewrap{overflow-x:auto}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="app-bar">
+  <a class="app-wordmark" href="/">E(O)N<sup class="tm">™</sup> MIL</a>
+  <nav class="app-nav" aria-label="Main">
+    <a href="/" aria-current="page">Console</a>
+    <a href="/wrist">Wrist display</a>
+  </nav>
+</header>
+<main id="main" class="app-main">
+  <div class="console-head">
     <div>
-      <div class="mark">E(O)N<sup>™</sup> MIL</div>
       <h1>Exercise QUIETFIELD</h1>
       <p class="lead" id="status">Loading the picture…</p>
-      <p class="small">Simulation. Not for operational use. Synthetic emitters only. Inside ODIN°<sup>™</sup>. <a href="/wrist" style="color:inherit">Wrist display</a></p>
+      <p class="small">Simulation. Not for operational use. Synthetic emitters only. Inside ODIN°<sup class="tm">™</sup>.</p>
     </div>
     <div class="bar">
       <div class="seg" role="group" aria-label="Role">
@@ -81,7 +88,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
       <button id="reset" hidden>Reset exercise</button>
       <button class="primary" id="sweep">Sweep</button>
     </div>
-  </header>
+  </div>
 
   <div class="grid">
     <section>
@@ -111,7 +118,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
       <div id="reportBody"></div>
     </section>
   </div>
-</div>
+</main>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 const API = "/api/eon";
