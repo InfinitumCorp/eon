@@ -3,6 +3,7 @@ import { Ledger } from "./ledger.ts";
 import { bearingDeg, classify, dbmToMw, distance, intersectBearings, makeRng, mwToDbm, pathLossDb, rangeForLossM } from "./rf.ts";
 import {
   BEARING_SIGMA_DEG,
+  CLOCK_LIMIT_TICKS,
   DRAIN,
   EMITTERS,
   EXERCISE,
@@ -29,6 +30,7 @@ import type {
   Affiliation,
   Alert,
   AlertKind,
+  ClockView,
   Detection,
   EmitterClass,
   EmitterTruth,
@@ -129,6 +131,7 @@ export class Eon {
   private seq = 0;
   private tracks: { id: string; freqMHz: number; emitterId: string }[] = [];
   private engagements: Engagement[] = [];
+  private clockState: { on: boolean; ticks: number; stoppedBy: string | null } = { on: false, ticks: 0, stoppedBy: null };
   /** unit:check pairs that have an open integrity alert. */
   private integrityAlerted = new Set<string>();
   /** Platform id -> tick from which it no longer emits. */
@@ -278,6 +281,35 @@ export class Eon {
       };
     });
     return { score, band: bandOf(score), checks, quarantined: u.quarantined };
+  }
+
+  get clock(): ClockView {
+    return { ...this.clockState, limit: CLOCK_LIMIT_TICKS, tickSeconds: TICK_SECONDS };
+  }
+
+  /** Team lead only: start or stop the live exercise clock. */
+  async setClock(role: Role, on: boolean): Promise<Result<ClockView>> {
+    if (role !== "teamlead") return { ok: false, error: "Only the team lead runs the exercise clock." };
+    if (this.clockState.on === on) return { ok: true, data: this.clock };
+    this.clockState = on ? { on: true, ticks: 0, stoppedBy: null } : { ...this.clockState, on: false, stoppedBy: "teamlead" };
+    await this.record("clock", role, EXERCISE, { on, tickSeconds: TICK_SECONDS, limit: CLOCK_LIMIT_TICKS });
+    return { ok: true, data: this.clock };
+  }
+
+  /**
+   * One tick of the live clock: a sweep the exercise makes on its own. Refused
+   * when the clock is off. Stops the clock, on the ledger, at the limit.
+   */
+  async clockTick(): Promise<Result<{ tick: number; alerts: Alert[]; clock: ClockView }>> {
+    if (!this.clockState.on) return { ok: false, error: "The exercise clock is not running." };
+    const r = await this.sweep("operator");
+    this.clockState.ticks += 1;
+    if (this.clockState.ticks >= CLOCK_LIMIT_TICKS) {
+      this.clockState = { ...this.clockState, on: false, stoppedBy: "limit" };
+      await this.record("clock", "control", EXERCISE, { on: false, reason: "limit", ticks: this.clockState.ticks });
+      this.alert(`clock:${this.tick}`, "clock", null, `Exercise clock stopped after ${this.clockState.ticks} ticks. The team lead can start it again.`);
+    }
+    return { ok: true, data: { tick: r.data!.tick, alerts: r.data!.alerts, clock: this.clock } };
   }
 
   /** Team lead only: withhold (or restore) a device's reports from the shared picture. */
@@ -778,6 +810,7 @@ export class Eon {
       fixes: [...this.fixes.values()].sort((a, b) => a.track.localeCompare(b.track)),
       alerts: [...this.alerts].reverse(),
       engagements: [...this.engagements].reverse(),
+      clock: this.clock,
       ledgerOk: verify.ok,
       ledgerLength: verify.length,
       ledgerHead: this.ledger.head,

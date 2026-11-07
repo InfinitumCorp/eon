@@ -110,6 +110,7 @@ export const API: readonly Route[] = [
   { method: "POST", path: "/api/eon/scan", body: { role: "", unitId: "", mode: "wide|economy" } },
   { method: "POST", path: "/api/eon/battery", body: { role: "", unitId: "" } },
   { method: "POST", path: "/api/eon/quarantine", body: { role: "teamlead", unitId: "", on: "true|false" } },
+  { method: "POST", path: "/api/eon/clock", body: { role: "teamlead", on: "true|false" } },
   { method: "POST", path: "/api/eon/reset", body: { role: "teamlead" } },
 ];
 
@@ -164,6 +165,11 @@ export const WORK: readonly WorkItem[] = [
   { name: "Console and wrist display", done: true, detail: "White console at /. Watch-sized wrist view at /wrist." },
   { name: "Deployed", done: true, detail: "Cloudflare Workers at eon.infinitumcorp.workers.dev behind Cloudflare Access." },
   { name: "CI", done: true, detail: "GitHub Actions runs npm test." },
+  {
+    name: "Live exercise clock",
+    done: true,
+    detail: "The team lead starts a clock that sweeps every 30 s on a Durable Object alarm. It is in the action log, survives restarts, and stops itself after 40 ticks.",
+  },
   {
     name: "ODIN°™ picture feed",
     done: true,

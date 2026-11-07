@@ -6,7 +6,7 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test src/lib/eon/service.test.ts src/lib/eon/access.test.ts src/lib/eon/integrity.test.ts handoff/handoff.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/eon/service.test.ts src/lib/eon/access.test.ts src/lib/eon/integrity.test.ts src/lib/eon/clock.test.ts handoff/handoff.test.ts",
     "calibrate": "node --experimental-strip-types scripts/seeds.ts",
     "dev": "node --experimental-strip-types scripts/serve.ts",
     "deploy": "npx wrangler deploy",

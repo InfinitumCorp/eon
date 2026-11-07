@@ -69,6 +69,10 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
       if (typeof body.on !== "boolean") throw new BadRequest("on must be true or false.");
       return { op: "quarantine", role: r, unitId: text(body.unitId, "unitId"), on: body.on };
     }
+    case "clock": {
+      if (typeof body.on !== "boolean") throw new BadRequest("on must be true or false.");
+      return { op: "clock", role: r, on: body.on };
+    }
     case "reset":
       return { op: "reset", role: r };
     default:
@@ -92,6 +96,7 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
  * POST /api/eon/scan        { role, unitId, mode: wide|economy }
  * POST /api/eon/battery     { role, unitId }          battery swap
  * POST /api/eon/quarantine  { role, unitId, on }      team lead only: withhold a device's reports
+ * POST /api/eon/clock       { role, on }              team lead only: start or stop the live clock
  * POST /api/eon/reset       { role }                  team lead only
  */
 export async function handleEonRequest(request: Request, splat: string, exercise: Exercise): Promise<Response> {

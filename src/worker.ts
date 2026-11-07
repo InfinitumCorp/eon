@@ -1,6 +1,6 @@
 import { CONSOLE_HTML } from "./console.ts";
 import { WRIST_HTML } from "./wrist.ts";
-import { type DurableStorageLike, DurableStore, Exercise, MemoryStore } from "./lib/eon/exercise.ts";
+import { type DurableStorageLike, DurableStore, Exercise, MemoryStore, type Scheduler } from "./lib/eon/exercise.ts";
 import { type AccessConfig, type CertFetcher, verifyAccessJwt } from "./lib/eon/access.ts";
 import { CLEARANCE_HEADER, handleEonRequest, PERSON_HEADER } from "./lib/eon/http.ts";
 import { EXERCISE } from "./lib/eon/scenario.ts";
@@ -8,6 +8,11 @@ import { EXERCISE } from "./lib/eon/scenario.ts";
 interface DurableObjectNamespaceLike {
   idFromName(name: string): unknown;
   get(id: unknown): { fetch(request: Request): Promise<Response> };
+}
+
+interface AlarmStorage {
+  setAlarm(scheduledTimeMs: number): Promise<void>;
+  deleteAlarm(): Promise<void>;
 }
 
 interface Env {
@@ -78,8 +83,17 @@ function splatOf(url: URL): string | null {
 export class EonExercise {
   private readonly exercise: Exercise;
 
-  constructor(state: { storage: DurableStorageLike }) {
-    this.exercise = new Exercise(new DurableStore(state.storage));
+  constructor(state: { storage: DurableStorageLike & AlarmStorage }) {
+    // The live clock is a Durable Object alarm: it survives restarts and deploys.
+    const scheduler: Scheduler = {
+      set: (atMs) => state.storage.setAlarm(atMs),
+      clear: () => state.storage.deleteAlarm(),
+    };
+    this.exercise = new Exercise(new DurableStore(state.storage), 7, scheduler);
+  }
+
+  async alarm(): Promise<void> {
+    await this.exercise.tick();
   }
 
   fetch(request: Request): Promise<Response> {
@@ -88,8 +102,24 @@ export class EonExercise {
   }
 }
 
-/** Local Node runs have no Durable Objects; they keep the log in memory. */
+/** Local Node runs have no Durable Objects; they keep the log in memory and tick on a timer. */
 let local: Exercise | null = null;
+
+function localExercise(): Exercise {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const exercise: Exercise = new Exercise(new MemoryStore(), 7, {
+    async set(atMs) {
+      clearTimeout(timer);
+      timer = setTimeout(() => void exercise.tick(), Math.max(0, atMs - Date.now()));
+      // Do not hold a Node process open just for the clock.
+      (timer as { unref?: () => void }).unref?.();
+    },
+    async clear() {
+      clearTimeout(timer);
+    },
+  });
+  return exercise;
+}
 
 /**
  * Cloudflare Worker entry for the E(O)N™ MIL exercise.
@@ -111,7 +141,7 @@ export default {
       if (accessConfig(env)) headers.set(CLEARANCE_HEADER, clearanceOf(who.person, env));
       const inner = new Request(request, { headers });
       if (env.EXERCISE) return env.EXERCISE.get(env.EXERCISE.idFromName(EXERCISE)).fetch(inner);
-      local ??= new Exercise(new MemoryStore());
+      local ??= localExercise();
       return handleEonRequest(inner, splat, local);
     }
     const page = request.method === "GET" ? PAGES[url.pathname] : undefined;

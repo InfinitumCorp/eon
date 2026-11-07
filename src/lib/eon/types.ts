@@ -106,7 +106,7 @@ export interface Fix {
   bearings: number;
 }
 
-export type AlertKind = "drone" | "jamming" | "gnss" | "radar" | "engagement" | "power" | "integrity";
+export type AlertKind = "drone" | "jamming" | "gnss" | "radar" | "engagement" | "power" | "integrity" | "clock";
 
 export type EngagementMethod = "disrupt" | "handoff";
 
@@ -225,6 +225,8 @@ export interface Picture {
   ledgerLength: number;
   ledgerHead: string;
   ledger: LedgerEntry[];
+  /** Live exercise clock: when on, the exercise sweeps itself every tick. */
+  clock: ClockView;
   /** Who is looking, from Cloudflare Access; null for local runs. */
   viewer?: string | null;
   /** Highest role the viewer may take; null when roles are not locked (local runs). */
@@ -300,6 +302,16 @@ export interface OdinFeed {
   ledgerOk: boolean;
   withheld: string[];
   note: string;
+}
+
+export interface ClockView {
+  on: boolean;
+  /** Ticks the clock has run since it was last started. */
+  ticks: number;
+  limit: number;
+  tickSeconds: number;
+  /** Why it last stopped: "teamlead", "limit" or "reset"; null if never stopped. */
+  stoppedBy: string | null;
 }
 
 export interface Result<T = unknown> {

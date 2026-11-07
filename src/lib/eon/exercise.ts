@@ -15,6 +15,9 @@ export type Action = (
   | { op: "scan"; role: Role; unitId: string; mode: ScanMode }
   | { op: "battery"; role: Role; unitId: string }
   | { op: "quarantine"; role: Role; unitId: string; on: boolean }
+  | { op: "clock"; role: Role; on: boolean }
+  /** A sweep made by the live clock rather than a person. */
+  | { op: "tick" }
   | { op: "reset"; role: Role }
 ) & {
   /** Signed-in person (Cloudflare Access) behind the action. Kept in the log so replay attributes it again. */
@@ -70,9 +73,26 @@ async function run(eon: Eon, a: Action): Promise<Outcome> {
       const r = await eon.quarantine(a.role, a.unitId, a.on);
       return { status: r.ok ? 200 : a.role === "teamlead" ? 404 : 403, body: r };
     }
+    case "clock": {
+      const r = await eon.setClock(a.role, a.on);
+      return { status: r.ok ? 200 : 403, body: r };
+    }
+    case "tick": {
+      const r = await eon.clockTick();
+      return { status: r.ok ? 200 : 409, body: r };
+    }
     case "reset":
       throw new Error("Reset is handled by the exercise, not applied.");
   }
+}
+
+/**
+ * When the next clock tick fires. A Durable Object alarm on Cloudflare; a timer
+ * in local runs; a fake in tests. One pending tick at a time.
+ */
+export interface Scheduler {
+  set(atMs: number): Promise<void>;
+  clear(): Promise<void>;
 }
 
 /** Where the action log lives: memory for local runs, Durable Object storage on Cloudflare. */
@@ -134,9 +154,51 @@ export class Exercise {
   /** Actions replayed the last time the exercise was rebuilt from storage. */
   replayed = 0;
 
-  constructor(store: ActionStore, seed = 7) {
+  private readonly scheduler: Scheduler | null;
+  /** Clock for scheduling; tests replace it. */
+  now: () => number = () => Date.now();
+
+  constructor(store: ActionStore, seed = 7, scheduler: Scheduler | null = null) {
     this.store = store;
     this.seed = seed;
+    this.scheduler = scheduler;
+  }
+
+  private async schedule(eon: Eon) {
+    if (!this.scheduler) return;
+    if (eon.clock.on) await this.scheduler.set(this.now() + eon.clock.tickSeconds * 1000);
+    else await this.scheduler.clear();
+  }
+
+  /**
+   * The scheduler fired: if the clock is still on, sweep once and book the next
+   * tick. Safe to call when it is off (a late alarm after a stop does nothing).
+   */
+  tick(): Promise<Outcome | null> {
+    return this.serial(async () => {
+      const eon = await this.ready();
+      if (!eon.clock.on) {
+        await this.scheduler?.clear();
+        return null;
+      }
+      const outcome = await this.commit(eon, { op: "tick" });
+      await this.schedule(eon);
+      return outcome;
+    });
+  }
+
+  /** Apply an action and append it to the log; on a storage failure drop memory. */
+  private async commit(eon: Eon, action: Action): Promise<Outcome> {
+    const outcome = await applyAction(eon, action);
+    try {
+      await this.store.append(this.seq, action);
+      this.seq += 1;
+    } catch (error) {
+      // Memory is now ahead of storage: drop it so the next request rebuilds from the log.
+      this.eon = null;
+      throw error;
+    }
+    return outcome;
   }
 
   private serial<T>(fn: () => Promise<T>): Promise<T> {
@@ -165,21 +227,15 @@ export class Exercise {
       if (action.op === "reset") {
         if (action.role !== "teamlead") return { status: 403, body: { ok: false, error: "Only the team lead resets the exercise." } };
         await this.store.clear();
+        await this.scheduler?.clear();
         this.eon = await Eon.create(this.seed);
         this.seq = 0;
         this.replayed = 0;
         return { status: 200, body: { ok: true, tick: 0 } };
       }
       const eon = await this.ready();
-      const outcome = await applyAction(eon, action);
-      try {
-        await this.store.append(this.seq, action);
-        this.seq += 1;
-      } catch (error) {
-        // Memory is now ahead of storage: drop it so the next request rebuilds from the log.
-        this.eon = null;
-        throw error;
-      }
+      const outcome = await this.commit(eon, action);
+      if (action.op === "clock") await this.schedule(eon);
       return outcome;
     });
   }

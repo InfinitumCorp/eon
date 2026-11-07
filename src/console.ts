@@ -79,6 +79,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
         <button data-role="teamlead" aria-pressed="false">Team lead</button>
       </div>
       <button id="reset" hidden>Reset exercise</button>
+      <button id="clock" hidden aria-pressed="false">Start clock</button>
       <button class="primary" id="sweep">Sweep</button>
     </div>
   </header>
@@ -148,6 +149,15 @@ function render() {
   document.querySelector('[data-role="teamlead"]').hidden = pic.clearance === "operator";
   $("reportBox").hidden = !lead;
   $("reset").hidden = !lead;
+  // Live clock: the team lead starts and stops it; everyone sees it running.
+  const c = pic.clock;
+  $("clock").hidden = !lead;
+  $("clock").textContent = c.on ? "Stop clock" : "Start clock";
+  $("clock").setAttribute("aria-pressed", String(c.on));
+  $("clock").classList.toggle("accent", c.on);
+  $("status").textContent += c.on
+    ? " · clock running, tick every " + c.tickSeconds + " s (" + c.ticks + "/" + c.limit + ")"
+    : c.stoppedBy === "limit" ? " · clock stopped at its " + c.limit + "-tick limit" : "";
 
   // Map
   const ring = pic.fixes.map((f) => {
@@ -255,6 +265,10 @@ document.addEventListener("click", async (ev) => {
     } else if (b.dataset.swap) {
       const r = await call("battery", { unitId: b.dataset.swap });
       if (r.ok) toast(r.data.callsign + " battery swapped.");
+    } else if (b.id === "clock") {
+      const on = !(pic && pic.clock && pic.clock.on);
+      const r = await call("clock", { on });
+      if (r.ok) toast(on ? "Clock started: the exercise sweeps itself every " + r.data.tickSeconds + " s." : "Clock stopped.");
     } else if (b.id === "reset") {
       // Two clicks: the first arms the button for five seconds, the second resets.
       if (!b.dataset.armed) {
@@ -290,6 +304,23 @@ document.addEventListener("change", async (ev) => {
 });
 
 load();
+
+// Keep the picture current while the clock (or another viewer) moves it on.
+// Re-render only when something changed, and never under an open dropdown.
+setInterval(async () => {
+  if (document.hidden || !pic) return;
+  if (document.activeElement && document.activeElement.tagName === "SELECT") return;
+  try {
+    const res = await fetch(API + "/picture?role=" + role, { cache: "no-store" });
+    if (!res.ok) return;
+    const next = await res.json();
+    if (next.tick !== pic.tick || next.ledgerLength !== pic.ledgerLength || next.clock.on !== pic.clock.on) {
+      pic = next;
+      render();
+      if (role === "teamlead" && $("reportBody").innerHTML) await loadReport();
+    }
+  } catch {}
+}, 5000);
 </script>
 </body>
 </html>`;
