@@ -168,7 +168,7 @@ export const WORK = [
     name: "Supabase backend",
     done: false,
     detail:
-      "Migration and Worker code are in. Not live: the migration is not applied, eon is not an exposed schema, and SUPABASE_SERVICE_ROLE_KEY is not set as a Worker secret.",
+      "Migration applied to the Infinitum Corp project (version 20261107195730). Not live yet: eon is not an exposed API schema and SUPABASE_SERVICE_ROLE_KEY is not set as a Worker secret.",
   },
   {
     name: "ODIN°™ pulls the feed",
