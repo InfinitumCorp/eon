@@ -102,6 +102,8 @@ src/lib/eon/http.ts        HTTP contract: parses requests into actions
 src/lib/eon/exercise.ts    Action log, replay and the shared exercise session
 src/lib/eon/access.ts      Cloudflare Access token verification (who is acting)
 src/lib/eon/integrity.ts   On-device integrity checks, weights, recommendations, health score
+src/lib/eon/supabase.ts    Supabase link: team-lead roster and run archive (eon schema)
+supabase/migrations/       Schema for the eon schema in the shared Supabase project
 scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
 scripts/handoff.ts         Writes handoff/eon_work.js and .py from eon_work.ts
@@ -126,7 +128,26 @@ State lives in one Durable Object (`EonExercise`), so every viewer sees the same
 npx wrangler deploy
 ```
 
-No secrets are required. Do not commit tokens.
+The Worker runs without secrets. `SUPABASE_SERVICE_ROLE_KEY` (below) is optional and goes in as a Worker secret. Do not commit tokens.
+
+## Supabase
+
+The live exercise stays in the Durable Object: it ticks in real time and its picture is MIL exercise data, which does not go into the shared project. The shared Infinitum Corp Supabase project (ref `ivqiskeziohbbtkcvlun`) holds only what outlives a run, in its own `eon` schema:
+
+| Table | Holds |
+|---|---|
+| `eon.team_leads` | Emails cleared as team lead, on top of `TEAM_LEADS`. Cached for a minute; if Supabase is unreachable the last good list is kept, and access never widens. |
+| `eon.exercise_runs` | One row per finished run (on reset, or when the clock hits its limit): start and end time, ticks, ledger length, ledger head hash, whether the ledger verified, and who ended it. No detections, fixes or engagements. |
+
+Row-level security is on for both tables with no policies, and `anon` and `authenticated` have no grants, so only the Worker's service-role key can read or write them. The schema is in `supabase/migrations/`.
+
+To turn it on:
+
+1. Apply the migration to the project (`supabase db push`, or run the SQL in the SQL editor).
+2. Add `eon` to the exposed schemas under Project Settings → API (the Worker calls PostgREST with `Accept-Profile: eon`).
+3. `npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY`, then deploy.
+
+Until the secret is set, the Worker uses `TEAM_LEADS` alone and archives nothing. An archive failure is logged and never blocks a reset or a tick.
 
 ## Rules
 

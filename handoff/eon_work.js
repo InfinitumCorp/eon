@@ -44,6 +44,8 @@ export const RULES = {
   deviceIntegrity:
     "Checks run on each wearer's device; only pass or fail per check and one health score leave it. In this exercise the signals are scripted. A browser cannot inspect a real phone.",
   host: "Cloudflare Workers, project eon, one Durable Object. Deployed behind Cloudflare Access.",
+  backend:
+    "Live state in the Durable Object. The shared Infinitum Corp Supabase project (eon schema) holds only the team-lead roster and a record of finished runs; no picture data.",
 };
 
 export const COMMITS = [
@@ -73,10 +75,12 @@ export const FILES = {
   "src/lib/eon/access.ts": "Cloudflare Access JWT verification.",
   "src/lib/eon/http.ts": "HTTP contract. Parses requests into actions and enforces clearance.",
   "src/lib/eon/exercise.ts": "Action log, replay and the shared exercise session.",
+  "src/lib/eon/supabase.ts": "Supabase link: eon.team_leads roster (cached) and eon.exercise_runs archive.",
+  "supabase/migrations/": "eon schema, row-level security on, no anon or authenticated grants.",
   "src/lib/eon/*.test.ts": "Node test runner. No network.",
   "scripts/serve.ts": "Local preview on Node.",
   "scripts/seeds.ts": "Fix-ellipse calibration across 100 seeds.",
-  "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience and TEAM_LEADS.",
+  "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience, TEAM_LEADS and SUPABASE_URL.",
   ".github/workflows/test.yml": "CI: npm test.",
   "docs/device-stack.md": "Planned device and app dependencies with licenses. Not used here.",
 };
@@ -159,6 +163,12 @@ export const WORK = [
     done: true,
     detail:
       "GET /api/eon/feed/odin publishes every emitter fix as an ODIN track and a Lattice entity. Read-only; wearer positions, device health, EMCON and pending engagements stay inside the team.",
+  },
+  {
+    name: "Supabase backend",
+    done: false,
+    detail:
+      "Migration and Worker code are in. Not live: the migration is not applied, eon is not an exposed schema, and SUPABASE_SERVICE_ROLE_KEY is not set as a Worker secret.",
   },
   {
     name: "ODIN°™ pulls the feed",

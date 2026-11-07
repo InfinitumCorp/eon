@@ -4,6 +4,7 @@ import { type DurableStorageLike, DurableStore, Exercise, MemoryStore, type Sche
 import { type AccessConfig, type CertFetcher, verifyAccessJwt } from "./lib/eon/access.ts";
 import { CLEARANCE_HEADER, handleEonRequest, PERSON_HEADER } from "./lib/eon/http.ts";
 import { EXERCISE } from "./lib/eon/scenario.ts";
+import { EonDb, type Fetcher, supabaseConfig, TeamLeadCache } from "./lib/eon/supabase.ts";
 
 interface DurableObjectNamespaceLike {
   idFromName(name: string): unknown;
@@ -27,17 +28,41 @@ interface Env {
    * who signs in is an operator; an empty list means no one is team lead.
    */
   TEAM_LEADS?: string;
+  /** Shared Infinitum Corp Supabase project URL. With the key below, adds the eon.team_leads roster and the run archive. */
+  SUPABASE_URL?: string;
+  /** Service-role key, a Worker secret (wrangler secret put). Never sent to the browser. */
+  SUPABASE_SERVICE_ROLE_KEY?: string;
   /** Tests only: where to get Access signing keys. */
   ACCESS_CERTS?: CertFetcher;
+  /** Tests only: how to reach Supabase. */
+  SUPABASE_FETCH?: Fetcher;
+}
+
+function eonDb(env: Env): EonDb | null {
+  const cfg = supabaseConfig(env);
+  return cfg ? new EonDb(cfg, env.SUPABASE_FETCH) : null;
+}
+
+let leadCache = new TeamLeadCache();
+
+/** Tests only: forget the cached team-lead roster. */
+export function resetTeamLeadCache(): void {
+  leadCache = new TeamLeadCache();
 }
 
 function accessConfig(env: Env): AccessConfig | null {
   return env.ACCESS_TEAM_DOMAIN && env.ACCESS_AUD ? { teamDomain: env.ACCESS_TEAM_DOMAIN, aud: env.ACCESS_AUD } : null;
 }
 
-function clearanceOf(person: string | null, env: Env): "teamlead" | "operator" {
+/** Team lead if TEAM_LEADS or the eon.team_leads roster in Supabase names the person. */
+async function clearanceOf(person: string | null, env: Env): Promise<"teamlead" | "operator"> {
+  if (!person) return "operator";
+  const email = person.toLowerCase();
   const leads = (env.TEAM_LEADS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
-  return person && leads.includes(person.toLowerCase()) ? "teamlead" : "operator";
+  if (leads.includes(email)) return "teamlead";
+  const db = eonDb(env);
+  if (db && (await leadCache.get(db)).includes(email)) return "teamlead";
+  return "operator";
 }
 
 /**
@@ -83,13 +108,15 @@ function splatOf(url: URL): string | null {
 export class EonExercise {
   private readonly exercise: Exercise;
 
-  constructor(state: { storage: DurableStorageLike & AlarmStorage }) {
+  constructor(state: { storage: DurableStorageLike & AlarmStorage }, env: Env = {}) {
     // The live clock is a Durable Object alarm: it survives restarts and deploys.
     const scheduler: Scheduler = {
       set: (atMs) => state.storage.setAlarm(atMs),
       clear: () => state.storage.deleteAlarm(),
     };
     this.exercise = new Exercise(new DurableStore(state.storage), 7, scheduler);
+    const db = eonDb(env);
+    if (db) this.exercise.archive = (run) => db.archiveRun(run);
   }
 
   async alarm(): Promise<void> {
@@ -138,10 +165,14 @@ export default {
       headers.delete(CLEARANCE_HEADER);
       if (who.person) headers.set(PERSON_HEADER, who.person);
       // With Access on, the role a person may take comes from TEAM_LEADS, not from the request.
-      if (accessConfig(env)) headers.set(CLEARANCE_HEADER, clearanceOf(who.person, env));
+      if (accessConfig(env)) headers.set(CLEARANCE_HEADER, await clearanceOf(who.person, env));
       const inner = new Request(request, { headers });
       if (env.EXERCISE) return env.EXERCISE.get(env.EXERCISE.idFromName(EXERCISE)).fetch(inner);
-      local ??= localExercise();
+      if (!local) {
+        local = localExercise();
+        const db = eonDb(env);
+        if (db) local.archive = (run) => db.archiveRun(run);
+      }
       return handleEonRequest(inner, splat, local);
     }
     const page = request.method === "GET" ? PAGES[url.pathname] : undefined;

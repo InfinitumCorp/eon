@@ -10,6 +10,10 @@ ACCESS_TEAM_DOMAIN = "small-band-b1e1.cloudflareaccess.com"
 ACCESS_AUD = "bccb174669026677dfb5aeaca0072e6a8a2409591b798ab49b6ce548f9be7d66"
 # Who may act as team lead (comma-separated). Everyone else signed in is an operator.
 TEAM_LEADS = "theinfinitumcorp@gmail.com"
+# Shared Infinitum Corp Supabase project (eon schema): extra team leads from
+# eon.team_leads and an archive of finished runs. Inactive until the
+# SUPABASE_SERVICE_ROLE_KEY secret is set with `wrangler secret put`.
+SUPABASE_URL = "https://ivqiskeziohbbtkcvlun.supabase.co"
 
 [[durable_objects.bindings]]
 name = "EXERCISE"
