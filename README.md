@@ -128,3 +128,8 @@ No secrets are required. Do not commit tokens.
 ## Rules
 
 See [BUILD_RULES.md](BUILD_RULES.md).
+
+## Labyrinth client repositories
+
+Explicit Cumulus ID-authenticated artifact save/load SDK and `/api/labyrinth` relay.
+Existing product auth remains unchanged. [Integration and rollout contract](LABYRINTH.md).

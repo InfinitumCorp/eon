@@ -1,3 +1,4 @@
+import { proxyLabyrinthRequest } from "./labyrinth/index.ts";
 import { CONSOLE_HTML } from "./console.ts";
 import { WRIST_HTML } from "./wrist.ts";
 import { type DurableStorageLike, DurableStore, Exercise, MemoryStore } from "./lib/eon/exercise.ts";
@@ -11,6 +12,8 @@ interface DurableObjectNamespaceLike {
 }
 
 interface Env {
+  /** Central Cumulus ID Labyrinth endpoint. Never an exercise feed/product token. */
+  LBRNTH_ENDPOINT?: string;
   /** Durable Object holding the one shared exercise. Absent in local Node runs. */
   EXERCISE?: DurableObjectNamespaceLike;
   /** Cloudflare Access team domain, e.g. small-band-b1e1.cloudflareaccess.com. With ACCESS_AUD, turns on token checks. */
@@ -100,6 +103,7 @@ export default {
     const url = new URL(request.url);
     const who = await identify(request, env);
     if (!who.ok) return Response.json({ ok: false, error: who.error }, { status: 403, headers: { "cache-control": "no-store" } });
+    if (url.pathname === "/api/labyrinth") return proxyLabyrinthRequest(request, env.LBRNTH_ENDPOINT, "eon");
     const splat = splatOf(url);
     if (splat !== null) {
       // Only the Worker names the person; never pass on a copy the client sent.
