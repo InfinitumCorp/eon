@@ -103,6 +103,7 @@ src/lib/eon/integrity.ts   On-device integrity checks, weights, recommendations,
 scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
 scripts/handoff.ts         Writes handoff/eon_work.js and .py from eon_work.ts
+docs/device-stack.md       Planned open-source stack for the wearable and companion app (licenses, NOTICE duties)
 handoff/                   Handoff record (TypeScript, JavaScript, Python) for the next person or model
 ```
 

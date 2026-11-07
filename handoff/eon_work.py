@@ -110,6 +110,7 @@ FILES = {
     "scripts/seeds.ts": "Fix-ellipse calibration across 100 seeds.",
     "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience and TEAM_LEADS.",
     ".github/workflows/test.yml": "CI: npm test.",
+    "docs/device-stack.md": "Planned device and app dependencies with licenses. Not used here.",
 }
 
 API = [
@@ -374,6 +375,11 @@ WORK = [
         "name": "Real device checks",
         "done": False,
         "detail": "No native wearable firmware or app. Integrity signals are scripted.",
+    },
+    {
+        "name": "Wearable device stack",
+        "done": False,
+        "detail": "Planned open-source dependencies, licenses and NOTICE duties for the device and companion app are in docs/device-stack.md. None are used in this repo.",
     },
 ]
 

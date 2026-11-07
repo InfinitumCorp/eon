@@ -80,6 +80,7 @@ export const FILES = {
   "scripts/seeds.ts": "Fix-ellipse calibration across 100 seeds.",
   "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience and TEAM_LEADS.",
   ".github/workflows/test.yml": "CI: npm test.",
+  "docs/device-stack.md": "Planned device and app dependencies with licenses. Not used here.",
 } as const;
 
 export type HttpMethod = "GET" | "POST";
@@ -175,6 +176,11 @@ export const WORK: readonly WorkItem[] = [
     detail: "ODIN°™ is not deployed and does not call the feed yet. It would pull with a Cloudflare Access service token.",
   },
   { name: "Real device checks", done: false, detail: "No native wearable firmware or app. Integrity signals are scripted." },
+  {
+    name: "Wearable device stack",
+    done: false,
+    detail: "Planned open-source dependencies, licenses and NOTICE duties for the device and companion app are in docs/device-stack.md. None are used in this repo.",
+  },
 ];
 
 export const NOT_DONE = WORK.filter((item) => !item.done).map((item) => item.name);
