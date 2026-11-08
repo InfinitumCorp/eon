@@ -148,7 +148,19 @@ export async function handleEonRequest(request: Request, splat: string, exercise
         return json(
           await exercise.read(async (eon) => {
             const verify = await eon.verify();
-            return { ok: verify.ok, head: eon.ledger.head, length: verify.length, entries: eon.ledger.entries };
+            return {
+              ok: verify.ok,
+              product: "E(O)N™ MIL",
+              exercise: EXERCISE,
+              tick: eon.tick,
+              head: eon.ledger.head,
+              length: verify.length,
+              algorithm: "SHA-256 over canonical JSON, hex; Ed25519 signature over the hash",
+              publicKey: await eon.ledger.publicKeyHex(),
+              keyNote: "This instance's key. A restart re-signs the replayed log with a new key; the hash chain is unchanged.",
+              verify: "node --experimental-strip-types scripts/verify-ledger.ts <this file>",
+              entries: eon.ledger.entries,
+            };
           }),
         );
       }

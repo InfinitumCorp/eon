@@ -111,6 +111,7 @@ FILES = {
     "src/lib/eon/*.test.ts": "Node test runner. No network.",
     "scripts/serve.ts": "Local preview on Node.",
     "scripts/seeds.ts": "Fix-ellipse calibration across 100 seeds.",
+    "scripts/verify-ledger.ts": "Checks a downloaded ledger offline against the public key in the file.",
     "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience, TEAM_LEADS and SUPABASE_URL.",
     ".github/workflows/test.yml": "CI: npm test.",
     "docs/device-stack.md": "Planned device and app dependencies with licenses. Not used here.",
@@ -346,6 +347,11 @@ WORK = [
         "name": "Private ledger",
         "done": True,
         "detail": "Signed hash chain, verified on every picture.",
+    },
+    {
+        "name": "Checkable ledger export",
+        "done": True,
+        "detail": "The team lead downloads the ledger with its Ed25519 public key; scripts/verify-ledger.ts checks it offline. The key is per instance; a restart re-signs, the hash chain is unchanged.",
     },
     {
         "name": "Durable exercise",

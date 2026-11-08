@@ -108,7 +108,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
       <div class="units" id="units"></div>
     </section>
     <section class="full" id="reportBox" hidden>
-      <div class="row"><h2>After-action report</h2><button id="report">Refresh report</button></div>
+      <div class="row"><h2>After-action report</h2><span><button id="ledgerDl">Download ledger</button> <button id="report">Refresh report</button></span></div>
       <div id="reportBody"></div>
     </section>
   </div>
@@ -289,6 +289,19 @@ document.addEventListener("click", async (ev) => {
         $("reportBody").innerHTML = "";
       }
     } else if (b.id === "report") return await loadReport();
+    else if (b.id === "ledgerDl") {
+      // The signed ledger with its public key, for checking outside E(O)N.
+      const r = await call("ledger?role=teamlead");
+      if (!r.ok) return;
+      const url = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: "eon-ledger-tick-" + r.tick + ".json" });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast("Ledger downloaded: " + r.length + " entries, head " + r.head.slice(0, 12) + "…");
+      return;
+    }
     await load();
     if (role === "teamlead" && $("reportBody").innerHTML) await loadReport();
   } finally {
