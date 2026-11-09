@@ -69,6 +69,10 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
       if (typeof body.on !== "boolean") throw new BadRequest("on must be true or false.");
       return { op: "quarantine", role: r, unitId: text(body.unitId, "unitId"), on: body.on };
     }
+    case "clock": {
+      if (typeof body.on !== "boolean") throw new BadRequest("on must be true or false.");
+      return { op: "clock", role: r, on: body.on };
+    }
     case "reset":
       return { op: "reset", role: r };
     default:
@@ -92,6 +96,7 @@ function parseAction(path: string, body: Record<string, unknown>): Action | null
  * POST /api/eon/scan        { role, unitId, mode: wide|economy }
  * POST /api/eon/battery     { role, unitId }          battery swap
  * POST /api/eon/quarantine  { role, unitId, on }      team lead only: withhold a device's reports
+ * POST /api/eon/clock       { role, on }              team lead only: start or stop the live clock
  * POST /api/eon/reset       { role }                  team lead only
  */
 export async function handleEonRequest(request: Request, splat: string, exercise: Exercise): Promise<Response> {
@@ -143,7 +148,19 @@ export async function handleEonRequest(request: Request, splat: string, exercise
         return json(
           await exercise.read(async (eon) => {
             const verify = await eon.verify();
-            return { ok: verify.ok, head: eon.ledger.head, length: verify.length, entries: eon.ledger.entries };
+            return {
+              ok: verify.ok,
+              product: "E(O)N™ MIL",
+              exercise: EXERCISE,
+              tick: eon.tick,
+              head: eon.ledger.head,
+              length: verify.length,
+              algorithm: "SHA-256 over canonical JSON, hex; Ed25519 signature over the hash",
+              publicKey: await eon.ledger.publicKeyHex(),
+              keyNote: "This instance's key. A restart re-signs the replayed log with a new key; the hash chain is unchanged.",
+              verify: "node --experimental-strip-types scripts/verify-ledger.ts <this file>",
+              entries: eon.ledger.entries,
+            };
           }),
         );
       }

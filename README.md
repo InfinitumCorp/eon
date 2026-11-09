@@ -25,6 +25,8 @@ Product page: https://infinitum-corporation.vercel.app/products/eon
 | Wrist display | Each wearer gets a watch-sized page at `/wrist?unit=eon-1`: a north-up arrow and range to the nearest live hostile drone (located, heard in the last tick, airframe not yet defeated) with its error radius, the newest open alert with one-tap acknowledge, and link, nav and battery. It refreshes every 3 s. |
 | Device integrity | Each wearer's device checks itself every tick for a rooted or jailbroken OS, a debugger attached to the app, a hooking framework in the app, and an emulated environment. Only the outcome leaves the device: pass or fail per check and one 0–100 health score (root −40, hooking −35, emulator −30, debugger −25; healthy ≥ 90, degraded 60–89, compromised < 60). Each new failure raises an alert to that wearer and the team with a recommendation. The team lead can quarantine a device, which withholds its reports from the shared picture; the after-action report counts every tick a compromised device's reports still flowed. In the exercise the signals are scripted (ASH 1-2 has a debug session at ticks 2–3; ASH 1-4 is hooked and rooted from tick 5); on fielded hardware the same checks would read the OS's own attestation. |
 | ODIN°™ feed | `GET /api/eon/feed/odin` publishes every located emitter as an ODIN track (`id, name, source, note, grid, confidence, classification`) and as a Lattice entity, the two shapes ODIN already uses. Read-only: ODIN pulls; E(O)N never writes into ODIN. Only emitter fixes leave the team: wearer positions, device health, EMCON and engagements awaiting a decision stay inside. Grids are in the QUIETFIELD frame (metres); no mapping to ODIN's range grid is assumed. The feed cites the ledger head and tick it reflects. ODIN°™ is not deployed yet, so nothing pulls it today; it would use a Cloudflare Access service token. |
+| Checkable ledger | The team lead downloads the signed ledger from the console (Download ledger). The file carries the Ed25519 public key, so anyone can check it without E(O)N: `node --experimental-strip-types scripts/verify-ledger.ts eon-ledger-tick-12.json` checks every entry's sequence, hash chain, SHA-256 hash and signature, and that the stated head is the last hash. Any edited, removed or cut-off entry is reported by number. The key belongs to the running instance: a restart replays the log and re-signs it with a new key, and the hash chain stays the same. |
+| Live clock | The team lead starts and stops a clock that sweeps the exercise every 30 s on its own, using a Durable Object alarm, so the picture moves without anyone pressing Sweep. Every viewer's console refreshes within 5 s. Start, stop and each clocked tick are on the ledger, replay to the same state after a restart, and the clock stops itself after 40 ticks (20 minutes) with an alert, so a forgotten exercise cannot run for ever. Reset stops it. |
 | After-action report | Exercise control scores the shared picture against ground truth: detection latency, classification, fix accuracy against the stated ellipse, link availability, drone warnings, engagement outcomes, friendly engagements and spoof detection time, plus lessons. |
 
 ### Scenario timeline (seed 7)
@@ -56,7 +58,7 @@ Who acts comes from Cloudflare Access: the Worker verifies the Access token (RS2
 | GET | `/api/eon/picture` | `?role=operator\|teamlead` |
 | GET | `/api/eon/wrist` | `?unit=eon-1` (one wearer's wrist view) |
 | GET | `/api/eon/feed/odin` | — (read-only feed for ODIN°™) |
-| GET | `/api/eon/ledger` | `?role=teamlead` |
+| GET | `/api/eon/ledger` | `?role=teamlead`. Entries, head and the Ed25519 public key to check them with |
 | GET | `/api/eon/report` | `?role=teamlead` |
 | POST | `/api/eon/sweep` | `{ role }` |
 | POST | `/api/eon/emcon` | `{ role, unitId, profile: normal\|reduced\|silent }` (team lead) |
@@ -66,6 +68,7 @@ Who acts comes from Cloudflare Access: the Worker verifies the Access token (RS2
 | POST | `/api/eon/engagements` | `{ role, track, method: disrupt\|handoff }` |
 | POST | `/api/eon/decisions` | `{ role, engagementId, decision: approve\|reject, note? }` (team lead) |
 | POST | `/api/eon/quarantine` | `{ role, unitId, on: true\|false }` (team lead) |
+| POST | `/api/eon/clock` | `{ role, on: true\|false }` (team lead) |
 | POST | `/api/eon/reset` | `{ role }` (team lead) |
 
 The console is served at `/` and the wrist display at `/wrist`.
@@ -100,9 +103,13 @@ src/lib/eon/http.ts        HTTP contract: parses requests into actions
 src/lib/eon/exercise.ts    Action log, replay and the shared exercise session
 src/lib/eon/access.ts      Cloudflare Access token verification (who is acting)
 src/lib/eon/integrity.ts   On-device integrity checks, weights, recommendations, health score
+src/lib/eon/supabase.ts    Supabase link: team-lead roster and run archive (eon schema)
+supabase/migrations/       Schema for the eon schema in the shared Supabase project
 scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
 scripts/handoff.ts         Writes handoff/eon_work.js and .py from eon_work.ts
+scripts/verify-ledger.ts   Checks a downloaded ledger offline against its public key
+docs/device-stack.md       Planned open-source stack for the wearable and companion app (licenses, NOTICE duties)
 handoff/                   Handoff record (TypeScript, JavaScript, Python) for the next person or model
 ```
 
@@ -123,7 +130,26 @@ State lives in one Durable Object (`EonExercise`), so every viewer sees the same
 npx wrangler deploy
 ```
 
-No secrets are required. Do not commit tokens.
+The Worker runs without secrets. `SUPABASE_SERVICE_ROLE_KEY` (below) is optional and goes in as a Worker secret. Do not commit tokens.
+
+## Supabase
+
+The live exercise stays in the Durable Object: it ticks in real time and its picture is MIL exercise data, which does not go into the shared project. The shared Infinitum Corp Supabase project (ref `ivqiskeziohbbtkcvlun`) holds only what outlives a run, in its own `eon` schema:
+
+| Table | Holds |
+|---|---|
+| `eon.team_leads` | Emails cleared as team lead, on top of `TEAM_LEADS`. Cached for a minute; if Supabase is unreachable the last good list is kept, and access never widens. |
+| `eon.exercise_runs` | One row per finished run (on reset, or when the clock hits its limit): start and end time, ticks, ledger length, ledger head hash, whether the ledger verified, and who ended it. No detections, fixes or engagements. |
+
+Row-level security is on for both tables with no policies, and `anon` and `authenticated` have no grants, so only the Worker's service-role key can read or write them. The schema is in `supabase/migrations/`.
+
+To turn it on:
+
+1. Apply the migration to the project (`supabase db push`, or run the SQL in the SQL editor).
+2. Add `eon` to the exposed schemas under Project Settings → API (the Worker calls PostgREST with `Accept-Profile: eon`).
+3. `npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY`, then deploy.
+
+Until the secret is set, the Worker uses `TEAM_LEADS` alone and archives nothing. An archive failure is logged and never blocks a reset or a tick.
 
 ## Rules
 

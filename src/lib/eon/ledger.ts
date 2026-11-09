@@ -41,6 +41,52 @@ function bodyOf(e: Body): string {
   return canonicalize({ seq, prevHash, timestamp, type, actor, subject, payload });
 }
 
+export interface VerifyResult {
+  ok: boolean;
+  length: number;
+  brokenAt?: number;
+}
+
+/** Check a run of entries: sequence, hash chain, each hash, each signature. */
+export async function verifyEntries(entries: readonly LedgerEntry[], publicKey: CryptoKey): Promise<VerifyResult> {
+  let prev = GENESIS;
+  for (const [i, e] of entries.entries()) {
+    const broken = { ok: false, length: entries.length, brokenAt: i };
+    if (e.seq !== i || e.prevHash !== prev) return broken;
+    if (typeof e.signature !== "string" || !/^[0-9a-f]{128}$/.test(e.signature)) return broken;
+    const hash = await sha256Hex(bodyOf(e));
+    if (hash !== e.hash) return broken;
+    const good = await crypto.subtle.verify({ name: "Ed25519" }, publicKey, unhex(e.signature), enc.encode(hash));
+    if (!good) return broken;
+    prev = e.hash;
+  }
+  return { ok: true, length: entries.length };
+}
+
+/** What GET /api/eon/ledger returns: everything needed to check the chain without E(O)N. */
+export interface LedgerExport {
+  head: string;
+  entries: LedgerEntry[];
+  /** Raw Ed25519 public key, hex. */
+  publicKey: string;
+}
+
+/**
+ * Verify an exported ledger offline, against the public key it carries. Also
+ * checks that the stated head is the last entry's hash.
+ */
+export async function verifyExport(exp: LedgerExport): Promise<VerifyResult & { head?: string }> {
+  if (!exp || !Array.isArray(exp.entries) || typeof exp.publicKey !== "string" || !/^[0-9a-f]{64}$/.test(exp.publicKey)) {
+    return { ok: false, length: 0, brokenAt: 0 };
+  }
+  const key = await crypto.subtle.importKey("raw", unhex(exp.publicKey), { name: "Ed25519" }, false, ["verify"]);
+  const r = await verifyEntries(exp.entries, key);
+  if (!r.ok) return r;
+  const head = exp.entries.at(-1)?.hash ?? GENESIS;
+  if (exp.head !== head) return { ok: false, length: exp.entries.length, brokenAt: exp.entries.length };
+  return { ...r, head };
+}
+
 export class Ledger {
   readonly entries: LedgerEntry[] = [];
   private readonly keys: CryptoKeyPair;
@@ -52,6 +98,15 @@ export class Ledger {
   static async create(): Promise<Ledger> {
     const keys = (await crypto.subtle.generateKey({ name: "Ed25519" }, false, ["sign", "verify"])) as CryptoKeyPair;
     return new Ledger(keys);
+  }
+
+  /**
+   * Raw Ed25519 public key, hex. The key belongs to this running instance: a
+   * restart replays the log and re-signs with a new key, while the hash chain
+   * stays the same.
+   */
+  async publicKeyHex(): Promise<string> {
+    return hex((await crypto.subtle.exportKey("raw", this.keys.publicKey)) as ArrayBuffer);
   }
 
   get head(): string {
@@ -68,16 +123,7 @@ export class Ledger {
     return entry;
   }
 
-  async verify(): Promise<{ ok: boolean; length: number; brokenAt?: number }> {
-    let prev = GENESIS;
-    for (const [i, e] of this.entries.entries()) {
-      if (e.seq !== i || e.prevHash !== prev) return { ok: false, length: this.entries.length, brokenAt: i };
-      const hash = await sha256Hex(bodyOf(e));
-      if (hash !== e.hash) return { ok: false, length: this.entries.length, brokenAt: i };
-      const good = await crypto.subtle.verify({ name: "Ed25519" }, this.keys.publicKey, unhex(e.signature), enc.encode(hash));
-      if (!good) return { ok: false, length: this.entries.length, brokenAt: i };
-      prev = e.hash;
-    }
-    return { ok: true, length: this.entries.length };
+  verify(): Promise<VerifyResult> {
+    return verifyEntries(this.entries, this.keys.publicKey);
   }
 }

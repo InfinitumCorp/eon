@@ -46,6 +46,8 @@ export const RULES = {
   deviceIntegrity:
     "Checks run on each wearer's device; only pass or fail per check and one health score leave it. In this exercise the signals are scripted. A browser cannot inspect a real phone.",
   host: "Cloudflare Workers, project eon, one Durable Object. Deployed behind Cloudflare Access.",
+  backend:
+    "Live state in the Durable Object. The shared Infinitum Corp Supabase project (eon schema) holds only the team-lead roster and a record of finished runs; no picture data.",
 } as const;
 
 export const COMMITS = [
@@ -75,11 +77,15 @@ export const FILES = {
   "src/lib/eon/access.ts": "Cloudflare Access JWT verification.",
   "src/lib/eon/http.ts": "HTTP contract. Parses requests into actions and enforces clearance.",
   "src/lib/eon/exercise.ts": "Action log, replay and the shared exercise session.",
+  "src/lib/eon/supabase.ts": "Supabase link: eon.team_leads roster (cached) and eon.exercise_runs archive.",
+  "supabase/migrations/": "eon schema, row-level security on, no anon or authenticated grants.",
   "src/lib/eon/*.test.ts": "Node test runner. No network.",
   "scripts/serve.ts": "Local preview on Node.",
   "scripts/seeds.ts": "Fix-ellipse calibration across 100 seeds.",
-  "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience and TEAM_LEADS.",
+  "scripts/verify-ledger.ts": "Checks a downloaded ledger offline against the public key in the file.",
+  "wrangler.toml": "Worker eon, Durable Object EXERCISE, Access team domain, audience, TEAM_LEADS and SUPABASE_URL.",
   ".github/workflows/test.yml": "CI: npm test.",
+  "docs/device-stack.md": "Planned device and app dependencies with licenses. Not used here.",
 } as const;
 
 export type HttpMethod = "GET" | "POST";
@@ -109,6 +115,7 @@ export const API: readonly Route[] = [
   { method: "POST", path: "/api/eon/scan", body: { role: "", unitId: "", mode: "wide|economy" } },
   { method: "POST", path: "/api/eon/battery", body: { role: "", unitId: "" } },
   { method: "POST", path: "/api/eon/quarantine", body: { role: "teamlead", unitId: "", on: "true|false" } },
+  { method: "POST", path: "/api/eon/clock", body: { role: "teamlead", on: "true|false" } },
   { method: "POST", path: "/api/eon/reset", body: { role: "teamlead" } },
 ];
 
@@ -158,11 +165,21 @@ export const WORK: readonly WorkItem[] = [
   { name: "Device integrity", done: true, detail: "Root, debugger, hooking and emulator checks. One score. Alerts with recommendations. Team-lead quarantine." },
   { name: "After-action report", done: true, detail: "Scored against ground truth: latency, classification, fix accuracy, links, warnings, engagements, spoof, integrity." },
   { name: "Private ledger", done: true, detail: "Signed hash chain, verified on every picture." },
+  {
+    name: "Checkable ledger export",
+    done: true,
+    detail: "The team lead downloads the ledger with its Ed25519 public key; scripts/verify-ledger.ts checks it offline. The key is per instance; a restart re-signs, the hash chain is unchanged.",
+  },
   { name: "Durable exercise", done: true, detail: "One Durable Object. The action log replays after a restart or deploy." },
   { name: "Identity and roles", done: true, detail: "Access JWT verified in the Worker. Signed-in email on every decision. Team lead locked to TEAM_LEADS." },
   { name: "Console and wrist display", done: true, detail: "White console at /. Watch-sized wrist view at /wrist." },
   { name: "Deployed", done: true, detail: "Cloudflare Workers at eon.infinitumcorp.workers.dev behind Cloudflare Access." },
   { name: "CI", done: true, detail: "GitHub Actions runs npm test." },
+  {
+    name: "Live exercise clock",
+    done: true,
+    detail: "The team lead starts a clock that sweeps every 30 s on a Durable Object alarm. It is in the action log, survives restarts, and stops itself after 40 ticks.",
+  },
   {
     name: "ODIN°™ picture feed",
     done: true,
@@ -170,11 +187,22 @@ export const WORK: readonly WorkItem[] = [
       "GET /api/eon/feed/odin publishes every emitter fix as an ODIN track and a Lattice entity. Read-only; wearer positions, device health, EMCON and pending engagements stay inside the team.",
   },
   {
+    name: "Supabase backend",
+    done: false,
+    detail:
+      "Migration applied to the Infinitum Corp project (version 20261107195730). eon is an exposed Data API schema (anon and authenticated still denied). Not live yet: SUPABASE_SERVICE_ROLE_KEY is not set as a Worker secret.",
+  },
+  {
     name: "ODIN°™ pulls the feed",
     done: false,
     detail: "ODIN°™ is not deployed and does not call the feed yet. It would pull with a Cloudflare Access service token.",
   },
   { name: "Real device checks", done: false, detail: "No native wearable firmware or app. Integrity signals are scripted." },
+  {
+    name: "Wearable device stack",
+    done: false,
+    detail: "Planned open-source dependencies, licenses and NOTICE duties for the device and companion app are in docs/device-stack.md. None are used in this repo.",
+  },
 ];
 
 export const NOT_DONE = WORK.filter((item) => !item.done).map((item) => item.name);

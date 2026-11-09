@@ -12,14 +12,14 @@ export const WRIST_HTML = /* html */ `<!doctype html>
 <title>E(O)N™ MIL · Wrist</title>
 <meta name="description" content="E(O)N™ MIL wrist display. Simulated. Not for operational use.">
 <style>
-:root{--ink:#111820;--muted:#52606b;--line:#d6dce1;--accent:#2454dd;--paper:#fff;--soft:#f5f7f8;--m-ease:cubic-bezier(.22,1,.36,1)}
+:root{--ink:#111820;--muted:#52606b;--line:#d6dce1;--accent:#2454dd;--paper:#fff;--soft:#fff;--m-ease:cubic-bezier(.22,1,.36,1)}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
 sup{font-size:.6em}
 .face{max-width:360px;margin:0 auto;padding:16px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .mark{font-weight:500;font-size:15px}
-select{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);padding:4px 6px}
+select{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:4px 6px}
 .dial{position:relative;margin:16px auto 8px;width:240px;max-width:100%;aspect-ratio:1;border:1px solid var(--line);border-radius:50%;background:var(--soft);display:grid;place-items:center}
 .dial.hot{border-color:var(--accent)}
 .n{position:absolute;top:6px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--muted)}
@@ -30,18 +30,18 @@ select{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8p
 .sub{font-size:12px;color:var(--muted)}
 .state{text-align:center;font-size:18px;letter-spacing:-.015em;margin:4px 0 12px;min-height:1.4em}
 .state.hot{color:var(--accent)}
-.alert{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center;justify-content:space-between;min-height:64px}
+.alert{border:1px solid var(--line);padding:12px;display:flex;gap:12px;align-items:center;justify-content:space-between;min-height:64px}
 .alert.hot{border-color:var(--accent)}
 .alert p{margin:0;font-size:14px}
-button{font:inherit;font-size:14px;border-radius:999px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);padding:10px 16px;cursor:pointer;flex:none}
+button{font:inherit;font-size:14px;border-radius:0;border:1px solid var(--ink);background:var(--ink);color:var(--paper);padding:10px 16px;cursor:pointer;flex:none}
 button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button:disabled{opacity:.4;cursor:default}
 dl{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0 0}
-dl>div{border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center;min-width:0}
+dl>div{border:1px solid var(--line);padding:8px;text-align:center;min-width:0}
 dt{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 dd{margin:2px 0 0;font-size:14px;overflow-wrap:anywhere}
 dd.hot{color:var(--accent)}
-.meter{height:4px;border-radius:2px;background:var(--line);overflow:hidden;margin-top:4px}
+.meter{height:4px;background:var(--line);overflow:hidden;margin-top:4px}
 .meter i{display:block;height:100%;background:var(--ink)}
 .meter.low i{background:var(--accent)}
 .foot{margin-top:12px;font-size:11px;color:var(--muted);text-align:center}
@@ -52,7 +52,7 @@ dd.hot{color:var(--accent)}
 <body>
 <main class="face">
   <div class="top">
-    <span class="mark">E(O)N<sup>™</sup> MIL</span>
+    <span class="mark">E(O)N<sup class="tm">™</sup> MIL</span>
     <label><span class="sub" style="position:absolute;left:-9999px">Wearer</span>
       <select id="unit" aria-label="Wearer">
         <option value="eon-1">ASH 1-1</option>

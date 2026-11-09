@@ -8,6 +8,9 @@ import type { EmitterTruth, LinkPath, Point } from "./types.ts";
 export const EXERCISE = "QUIETFIELD";
 export const START_MS = Date.parse("2026-11-06T06:00:00Z");
 export const TICK_SECONDS = 30;
+
+/** The live clock stops itself after this many ticks (20 minutes) so an exercise left running cannot grow without end. */
+export const CLOCK_LIMIT_TICKS = 40;
 export const GRID_M = 4000;
 
 /** Receiver sensitivity of the wearable unit, dBm. */
