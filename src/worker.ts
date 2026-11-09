@@ -3,6 +3,7 @@ import { CONSOLE_HTML } from "./console.ts";
 import { WRIST_HTML } from "./wrist.ts";
 import { type DurableStorageLike, DurableStore, Exercise, MemoryStore, type Scheduler } from "./lib/eon/exercise.ts";
 import { type AccessConfig, type CertFetcher, verifyAccessJwt } from "./lib/eon/access.ts";
+import { observeRequest } from "./lib/eon/geo-hook.ts";
 import { CLEARANCE_HEADER, handleEonRequest, PERSON_HEADER } from "./lib/eon/http.ts";
 import { EXERCISE } from "./lib/eon/scenario.ts";
 import { EonDb, type Fetcher, supabaseConfig, TeamLeadCache } from "./lib/eon/supabase.ts";
@@ -39,6 +40,13 @@ interface Env {
   ACCESS_CERTS?: CertFetcher;
   /** Tests only: how to reach Supabase. */
   SUPABASE_FETCH?: Fetcher;
+  /**
+   * Opt-in cyber annotation of the connecting address and the request host.
+   * Unset, empty, or anything other than 1/true/on/yes leaves behaviour unchanged.
+   */
+  INFINITUM_GEO_ENABLED?: string;
+  /** Directory of geoip.dat and geosite.dat. Used only when geo annotation is on. */
+  INFINITUM_GEO_DIR?: string;
 }
 
 function eonDb(env: Env): EonDb | null {
@@ -157,6 +165,7 @@ function localExercise(): Exercise {
  */
 export default {
   async fetch(request: Request, env: Env = {}): Promise<Response> {
+    await observeRequest(request, env);
     const url = new URL(request.url);
     const who = await identify(request, env);
     if (!who.ok) return Response.json({ ok: false, error: who.error }, { status: 403, headers: { "cache-control": "no-store" } });

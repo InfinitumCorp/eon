@@ -87,6 +87,18 @@ npm run dev
 
 Then open http://localhost:8787 (console) or http://localhost:8787/wrist?unit=eon-1 (wrist display).
 
+## Geo datasets
+
+Opt-in cyber annotation of the connecting address and the request host. It stays off unless `INFINITUM_GEO_ENABLED` is `1`, `true`, `on` or `yes`. With the flag unset, requests are handled exactly as before: nothing is read and nothing is logged. When it is on, the Worker reads `data/geo/geoip.dat` and `data/geo/geosite.dat` (or the directory in `INFINITUM_GEO_DIR`) and writes one observe-only log line, the country for `cf-connecting-ip` and the geosite categories for the host. The line does not allow or refuse the request, and the response body is unchanged. The flag is not set in `wrangler.toml`.
+
+The bytes are not committed. The lockfile pins v2fly releases only.
+
+```bash
+npm run geo:fetch
+```
+
+`geoip.dat` is [v2fly/geoip](https://github.com/v2fly/geoip) `202611080027` (CC-BY-SA-4.0; IP geolocation data by DB-IP, CC-BY-4.0). `geosite.dat` is [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) `dlc.dat` from `20261108011013` (MIT), saved under that local name. Loyalsoldier and sing-box builds are not used. Attribution is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 GitHub Actions runs `npm test` on every push to main and on pull requests (`.github/workflows/test.yml`).
 
 ## Layout
@@ -103,12 +115,16 @@ src/lib/eon/http.ts        HTTP contract: parses requests into actions
 src/lib/eon/exercise.ts    Action log, replay and the shared exercise session
 src/lib/eon/access.ts      Cloudflare Access token verification (who is acting)
 src/lib/eon/integrity.ts   On-device integrity checks, weights, recommendations, health score
+src/lib/eon/geo.ts         v2ray GeoIPList and GeoSiteList loader (country and category lookups)
+src/lib/eon/geo-hook.ts    Opt-in cyber annotation, off unless INFINITUM_GEO_ENABLED is set
 src/lib/eon/supabase.ts    Supabase link: team-lead roster and run archive (eon schema)
 supabase/migrations/       Schema for the eon schema in the shared Supabase project
 scripts/serve.ts           Local preview on Node
 scripts/seeds.ts           Fix-ellipse calibration across 100 seeds
 scripts/handoff.ts         Writes handoff/eon_work.js and .py from eon_work.ts
 scripts/verify-ledger.ts   Checks a downloaded ledger offline against its public key
+scripts/fetch-geo.ts       Downloads the pinned v2fly geo datasets and checks SHA-256
+data/geo.lock.json         URLs, release tags and SHA-256 for those datasets
 docs/device-stack.md       Planned open-source stack for the wearable and companion app (licenses, NOTICE duties)
 handoff/                   Handoff record (TypeScript, JavaScript, Python) for the next person or model
 ```

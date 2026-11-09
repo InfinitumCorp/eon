@@ -1,6 +1,6 @@
 # E(O)N™ MIL device stack (planned)
 
-The wearable and its companion app do not exist yet. This repo is the exercise backend: a TypeScript Cloudflare Worker with no Python, Go, C, React Native or Swift code. Nothing below is a dependency of this repo, so none of it is in a `THIRD_PARTY_NOTICES.md` here.
+The wearable and its companion app do not exist yet. This repo is the exercise backend: a TypeScript Cloudflare Worker with no Python, Go, C, React Native or Swift code. Nothing below is a dependency of this repo. `THIRD_PARTY_NOTICES.md` records the opt-in v2fly geo datasets; it does not cover this device list.
 
 When the device or app repo starts, use these as dependencies (not copied code). Add each one's license text, and its NOTICE file where it has one, to that repo's `THIRD_PARTY_NOTICES.md` at the same time.
 

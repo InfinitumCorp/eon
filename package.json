@@ -6,7 +6,8 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test src/lib/eon/service.test.ts src/lib/eon/access.test.ts src/lib/eon/integrity.test.ts src/lib/eon/clock.test.ts src/lib/eon/supabase.test.ts src/lib/eon/ledger.test.ts handoff/handoff.test.ts src/labyrinth/labyrinth.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/eon/service.test.ts src/lib/eon/access.test.ts src/lib/eon/integrity.test.ts src/lib/eon/clock.test.ts src/lib/eon/supabase.test.ts src/lib/eon/ledger.test.ts src/lib/eon/geo.test.ts handoff/handoff.test.ts src/labyrinth/labyrinth.test.ts",
+    "geo:fetch": "node --experimental-strip-types scripts/fetch-geo.ts",
     "calibrate": "node --experimental-strip-types scripts/seeds.ts",
     "dev": "node --experimental-strip-types scripts/serve.ts",
     "deploy": "npx wrangler deploy",
