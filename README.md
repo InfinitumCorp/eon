@@ -154,3 +154,8 @@ Until the secret is set, the Worker uses `TEAM_LEADS` alone and archives nothing
 ## Rules
 
 See [BUILD_RULES.md](BUILD_RULES.md).
+
+## Labyrinth client repositories
+
+Explicit Cumulus ID-authenticated artifact save/load SDK and `/api/labyrinth` relay.
+Existing product auth remains unchanged. [Integration and rollout contract](LABYRINTH.md).

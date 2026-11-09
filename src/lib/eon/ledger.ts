@@ -24,7 +24,7 @@ function hex(buf: ArrayBuffer): string {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function unhex(s: string): Uint8Array {
+function unhex(s: string): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(s.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = Number.parseInt(s.slice(i * 2, i * 2 + 2), 16);
   return out;
