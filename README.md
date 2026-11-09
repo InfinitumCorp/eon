@@ -89,6 +89,32 @@ Then open http://localhost:8787 (console) or http://localhost:8787/wrist?unit=eo
 
 GitHub Actions runs `npm test` on every push to main and on pull requests (`.github/workflows/test.yml`).
 
+## Geo routing
+
+Off by default. With it off, the picture, the ledger and the rules of engagement are unchanged.
+
+The datasets are pinned v2fly releases only (not Loyalsoldier, not sing-box). Fetch them into `data/geo/`; the binaries are gitignored:
+
+```bash
+npm run fetch-geo
+```
+
+The script checks each download against the official `.sha256sum` asset and `geo/geo.lock.json`, and stops if they disagree. Attribution is in `THIRD_PARTY_NOTICES.md`.
+
+There is no settings screen. The toggle is a saved config plus a flag, default off:
+
+```bash
+npm run geo-routing -- status
+npm run geo-routing -- on
+npm run geo-routing -- off
+npm run dev -- --geo-routing
+npm run dev -- --no-geo-routing
+```
+
+`on` and `--geo-routing` write `data/settings.json` and keep the choice for the next local run. `INFINITUM_GEO_ENABLED` is the process switch the exercise actually reads (`true`, `on`, `yes` or `1`). Unset follows the saved toggle. An explicit `false` keeps cyber geo routing off for that process. `wrangler.toml` sets it to `false`.
+
+While it is on, an engagement may carry an optional `ip` or `domain`. The rules check can refuse that destination, and the ledger entry records the country and categories. Neither field is read while routing is off.
+
 ## Layout
 
 ```
@@ -103,6 +129,12 @@ src/lib/eon/http.ts        HTTP contract: parses requests into actions
 src/lib/eon/exercise.ts    Action log, replay and the shared exercise session
 src/lib/eon/access.ts      Cloudflare Access token verification (who is acting)
 src/lib/eon/integrity.ts   On-device integrity checks, weights, recommendations, health score
+src/lib/eon/geo.ts         v2fly GeoIPList / GeoSiteList reader and lookups
+src/lib/eon/geo-routing.ts Cyber geo routing, gated by INFINITUM_GEO_ENABLED
+geo/geo.lock.json          Pinned v2fly URLs, tags and SHA-256
+scripts/fetch-geo.ts       Downloads the datasets and fails on a checksum mismatch
+scripts/geo-routing.ts     Saved geo-routing toggle (default off)
+THIRD_PARTY_NOTICES.md     Attribution for the geo datasets
 src/lib/eon/supabase.ts    Supabase link: team-lead roster and run archive (eon schema)
 supabase/migrations/       Schema for the eon schema in the shared Supabase project
 scripts/serve.ts           Local preview on Node

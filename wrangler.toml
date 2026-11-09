@@ -14,6 +14,8 @@ TEAM_LEADS = "theinfinitumcorp@gmail.com"
 # eon.team_leads and an archive of finished runs. Inactive until the
 # SUPABASE_SERVICE_ROLE_KEY secret is set with `wrangler secret put`.
 SUPABASE_URL = "https://ivqiskeziohbbtkcvlun.supabase.co"
+# Cyber geo routing. Off keeps the exercise identical. Set to "true" only to opt in.
+INFINITUM_GEO_ENABLED = "false"
 
 [[durable_objects.bindings]]
 name = "EXERCISE"

@@ -1,3 +1,4 @@
+import { DISABLED_GEO, type GeoRouting } from "./geo-routing.ts";
 import { Eon } from "./service.ts";
 import { EXERCISE } from "./scenario.ts";
 import type { RunRecord } from "./supabase.ts";
@@ -12,7 +13,7 @@ export type Action = (
   | { op: "sweep"; role: Role }
   | { op: "emcon"; role: Role; unitId: string; profile: Profile }
   | { op: "ack"; role: Role; alertId: string }
-  | { op: "engage"; role: Role; track: string; method: EngagementMethod }
+  | { op: "engage"; role: Role; track: string; method: EngagementMethod; ip?: string; domain?: string }
   | { op: "decide"; role: Role; engagementId: string; decision: "approve" | "reject"; note?: string }
   | { op: "scan"; role: Role; unitId: string; mode: ScanMode }
   | { op: "battery"; role: Role; unitId: string }
@@ -58,7 +59,7 @@ async function run(eon: Eon, a: Action): Promise<Outcome> {
       return { status: r.ok ? 200 : 404, body: r };
     }
     case "engage": {
-      const r = await eon.engage(a.role, a.track, a.method);
+      const r = await eon.engage(a.role, a.track, a.method, { ip: a.ip, domain: a.domain });
       return { status: r.ok ? 200 : 409, body: r };
     }
     case "decide": {
@@ -159,6 +160,7 @@ export class Exercise {
   replayed = 0;
 
   private readonly scheduler: Scheduler | null;
+  private readonly geo: GeoRouting;
   /** Clock for scheduling; tests replace it. */
   now: () => number = () => Date.now();
   /** Wall-clock time of the current run's first action, ms. */
@@ -169,10 +171,11 @@ export class Exercise {
    */
   archive: ((run: RunRecord) => Promise<void>) | null = null;
 
-  constructor(store: ActionStore, seed = 7, scheduler: Scheduler | null = null) {
+  constructor(store: ActionStore, seed = 7, scheduler: Scheduler | null = null, geo: GeoRouting = DISABLED_GEO) {
     this.store = store;
     this.seed = seed;
     this.scheduler = scheduler;
+    this.geo = geo;
   }
 
   private async schedule(eon: Eon) {
@@ -223,7 +226,7 @@ export class Exercise {
   private async ready(): Promise<Eon> {
     if (this.eon) return this.eon;
     const log = await this.store.load();
-    const eon = await Eon.create(this.seed);
+    const eon = await Eon.create(this.seed, this.geo);
     for (const action of log) await applyAction(eon, action);
     this.eon = eon;
     this.seq = log.length;
@@ -265,7 +268,7 @@ export class Exercise {
         if (this.seq > 0) await this.archiveRun(ending, "reset", action.by ?? null);
         await this.store.clear();
         await this.scheduler?.clear();
-        this.eon = await Eon.create(this.seed);
+        this.eon = await Eon.create(this.seed, this.geo);
         this.seq = 0;
         this.replayed = 0;
         this.startedAt = null;

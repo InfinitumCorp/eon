@@ -34,6 +34,20 @@ function text(value: unknown, field: string, max = 64): string {
   return value.trim();
 }
 
+/** Optional destination for geo routing. Absent or unusable values are left off the action. */
+function optionalHint(body: Record<string, unknown>): { ip?: string; domain?: string } {
+  const hint: { ip?: string; domain?: string } = {};
+  if (typeof body.ip === "string") {
+    const ip = body.ip.trim();
+    if (ip && ip.length <= 64 && !/\s/.test(ip)) hint.ip = ip;
+  }
+  if (typeof body.domain === "string") {
+    const domain = body.domain.trim();
+    if (domain && domain.length <= 253 && !/\s/.test(domain)) hint.domain = domain;
+  }
+  return hint;
+}
+
 /** Actions a client can POST. The live clock's tick is not one of them. */
 type ClientAction = Exclude<Action, { op: "tick" }>;
 
@@ -53,7 +67,7 @@ function parseAction(path: string, body: Record<string, unknown>): ClientAction 
     case "engagements": {
       const method = text(body.method, "method");
       if (method !== "disrupt" && method !== "handoff") throw new BadRequest("Method must be disrupt or handoff.");
-      return { op: "engage", role: r, track: text(body.track, "track"), method };
+      return { op: "engage", role: r, track: text(body.track, "track"), method, ...optionalHint(body) };
     }
     case "decisions": {
       const decision = text(body.decision, "decision");
@@ -94,7 +108,7 @@ function parseAction(path: string, body: Record<string, unknown>): ClientAction 
  * POST /api/eon/sweep       { role }
  * POST /api/eon/emcon       { role, unitId, profile }   team lead only
  * POST /api/eon/ack         { role, alertId }
- * POST /api/eon/engagements { role, track, method: disrupt|handoff }   operator requests, team lead orders
+ * POST /api/eon/engagements { role, track, method: disrupt|handoff, ip?, domain? }   operator requests, team lead orders
  * POST /api/eon/decisions   { role, engagementId, decision: approve|reject, note? }   team lead only
  * POST /api/eon/scan        { role, unitId, mode: wide|economy }
  * POST /api/eon/battery     { role, unitId }          battery swap
