@@ -34,8 +34,11 @@ function text(value: unknown, field: string, max = 64): string {
   return value.trim();
 }
 
+/** Actions a client can POST. The live clock's tick is not one of them. */
+type ClientAction = Exclude<Action, { op: "tick" }>;
+
 /** Turn a POST into an action, or throw BadRequest. Returns null for an unknown path. */
-function parseAction(path: string, body: Record<string, unknown>): Action | null {
+function parseAction(path: string, body: Record<string, unknown>): ClientAction | null {
   const r = role(body.role);
   switch (path) {
     case "sweep":
