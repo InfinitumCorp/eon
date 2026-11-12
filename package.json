@@ -6,12 +6,13 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "test": "node --experimental-strip-types --test src/lib/eon/service.test.ts src/lib/eon/access.test.ts src/lib/eon/integrity.test.ts src/lib/eon/clock.test.ts src/lib/eon/supabase.test.ts src/lib/eon/ledger.test.ts handoff/handoff.test.ts src/labyrinth/labyrinth.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/eon/service.test.ts src/lib/eon/access.test.ts src/lib/eon/integrity.test.ts src/lib/eon/clock.test.ts src/lib/eon/supabase.test.ts src/lib/eon/ledger.test.ts handoff/handoff.test.ts src/labyrinth/labyrinth.test.ts src/assurance/assurance.test.ts",
     "calibrate": "node --experimental-strip-types scripts/seeds.ts",
     "dev": "node --experimental-strip-types scripts/serve.ts",
     "deploy": "npx wrangler deploy",
     "handoff": "node --experimental-strip-types --no-warnings scripts/handoff.ts",
-    "typecheck:labyrinth": "tsc --noEmit --strict --skipLibCheck --target ES2023 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions src/labyrinth/*.ts"
+    "typecheck:labyrinth": "tsc --noEmit --strict --skipLibCheck --target ES2023 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions src/labyrinth/*.ts",
+    "assurance:ai": "node --experimental-strip-types scripts/assurance-ai.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
