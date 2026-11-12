@@ -71,6 +71,7 @@ td{padding:10px 8px 10px 0;border-top:1px solid var(--line);vertical-align:middl
   <nav class="app-nav" aria-label="Main">
     <a href="/" aria-current="page">Console</a>
     <a href="/wrist">Wrist display</a>
+    <a href="/assurance">Assurance™</a>
   </nav>
 </header>
 <main id="main" class="app-main">
