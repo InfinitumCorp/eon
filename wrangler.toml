@@ -24,3 +24,7 @@ class_name = "EonExercise"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["EonExercise"]
+
+# Global users run on US servers (Ashburn, Virginia); Russia is served by the ru.* copies on Yandex Cloud.
+[placement]
+region = "gcp:us-east4"
