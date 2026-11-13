@@ -1,0 +1,6 @@
+{
+  "id": "eon-assurance",
+  "name": "E(O)N™ Assurance™",
+  "description": "Local report normalization and assessment catalog",
+  "configSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+}

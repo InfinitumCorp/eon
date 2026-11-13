@@ -1,0 +1,93 @@
+// Pinned research inventory. Cloned does not mean installed or executable.
+export const TOOL_CATALOG = [
+  {
+    "id": "caldera",
+    "name": "Caldera\u2122",
+    "url": "https://github.com/apache/caldera",
+    "commit": "cb8d6a8160e0f4990af323a7c071d5e8482b42c7",
+    "license": "Apache-2.0",
+    "purpose": "Adversary-emulation reference and exercise planning",
+    "status": "reference-only"
+  },
+  {
+    "id": "atomic-red-team",
+    "name": "Atomic Red Team\u2122",
+    "url": "https://github.com/redcanaryco/atomic-red-team",
+    "commit": "a0e3f9bc69fed2fd711bd1f1aa87a40c33482fe6",
+    "license": "MIT",
+    "purpose": "ATT&CK test catalog and detection coverage planning",
+    "status": "reference-only"
+  },
+  {
+    "id": "metasploit-framework",
+    "name": "Metasploit Framework\u2122",
+    "url": "https://github.com/rapid7/metasploit-framework",
+    "commit": "6210572159c86f2f1c87370e72635b76951b955d",
+    "license": "BSD-3-Clause plus component-specific terms",
+    "purpose": "Operator-controlled lab validation reference",
+    "status": "reference-only"
+  },
+  {
+    "id": "zaproxy",
+    "name": "ZAP\u2122",
+    "url": "https://github.com/zaproxy/zaproxy",
+    "commit": "7f738e46b3607d136d00b3a6ee47e5c8f7ab53f6",
+    "license": "Apache-2.0",
+    "purpose": "Web application assessment report review",
+    "status": "json-import"
+  },
+  {
+    "id": "nuclei",
+    "name": "Nuclei\u2122",
+    "url": "https://github.com/projectdiscovery/nuclei",
+    "commit": "b2ea1489fd7decaa83e467febb1e20aa9de8b4d5",
+    "license": "MIT",
+    "purpose": "Template assessment report review",
+    "status": "json-import"
+  },
+  {
+    "id": "bloodhound",
+    "name": "BloodHound\u2122",
+    "url": "https://github.com/SpecterOps/BloodHound",
+    "commit": "b910e81f5077df79005b0b5f46237faf712c041a",
+    "license": "Apache-2.0",
+    "purpose": "Identity relationship and exposure graph reference",
+    "status": "reference-only"
+  },
+  {
+    "id": "infection-monkey",
+    "name": "Infection Monkey\u2122",
+    "url": "https://github.com/guardicore/monkey",
+    "commit": "bea2f415c8966de235798bbf9d2dbcd06fd37ae4",
+    "license": "GPL-3.0",
+    "purpose": "Segmentation assessment reference",
+    "status": "reference-only"
+  },
+  {
+    "id": "garak",
+    "name": "garak\u2122",
+    "url": "https://github.com/NVIDIA/garak",
+    "commit": "892779207cbc38f65a738ef9cbdfbc1e83aa0b55",
+    "license": "Apache-2.0",
+    "purpose": "Local AI evaluation reference",
+    "status": "reference-only"
+  },
+  {
+    "id": "pyrit",
+    "name": "PyRIT\u2122",
+    "url": "https://github.com/Azure/PyRIT",
+    "commit": "bec7cb5d6089481d75fb8df143793de3da6905f5",
+    "license": "MIT",
+    "purpose": "Generative AI assessment orchestration reference",
+    "status": "reference-only"
+  },
+  {
+    "id": "defectdojo",
+    "name": "DefectDojo\u2122",
+    "url": "https://github.com/DefectDojo/django-DefectDojo",
+    "commit": "4b6bac70af552f0d09c5285377c1d6c03b051568",
+    "license": "BSD-3-Clause",
+    "purpose": "Finding lifecycle and deduplication reference",
+    "status": "reference-only"
+  }
+] as const;

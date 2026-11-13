@@ -1,4 +1,6 @@
 import { proxyLabyrinthRequest } from "./labyrinth/index.ts";
+import { handleAssuranceRequest } from "./assurance/http.ts";
+import { ASSURANCE_HTML } from "./assurance/page.ts";
 import { CONSOLE_HTML } from "./console.ts";
 import { WRIST_HTML } from "./wrist.ts";
 import { type DurableStorageLike, DurableStore, Exercise, MemoryStore, type Scheduler } from "./lib/eon/exercise.ts";
@@ -87,7 +89,7 @@ async function identify(request: Request, env: Env): Promise<{ ok: true; person:
 
 const PREFIX = "/api/eon";
 
-const PAGES: Record<string, string> = { "/": CONSOLE_HTML, "/wrist": WRIST_HTML };
+const PAGES: Record<string, string> = { "/": CONSOLE_HTML, "/wrist": WRIST_HTML, "/assurance": ASSURANCE_HTML };
 
 const PAGE_HEADERS = {
   "content-type": "text/html; charset=utf-8",
@@ -160,6 +162,7 @@ export default {
     const url = new URL(request.url);
     const who = await identify(request, env);
     if (!who.ok) return Response.json({ ok: false, error: who.error }, { status: 403, headers: { "cache-control": "no-store" } });
+    if (url.pathname.startsWith("/api/assurance/")) return handleAssuranceRequest(request);
     if (url.pathname === "/api/labyrinth") return proxyLabyrinthRequest(request, env.LBRNTH_ENDPOINT, "eon");
     const splat = splatOf(url);
     if (splat !== null) {

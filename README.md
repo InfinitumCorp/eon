@@ -8,6 +8,13 @@ This is a simulation. It is not for operational use. All emitters, frequencies a
 
 Live: https://eon.infinitumcorp.workers.dev
 
+## Assurance™ workspace (development branch)
+
+`/assurance` adds isolated assessment report review with ZAP™ and Nuclei™ JSON import,
+a ten-tool research catalog, an optional OpenClaw™ plugin and a local-only Ollama™
+advisory script. It does not launch scanners or connect to exercise controls.
+See [suite design, implementation status and setup](docs/ASSURANCE.md).
+
 Product page: https://infinitum-corporation.vercel.app/products/eon
 
 ## What it does
