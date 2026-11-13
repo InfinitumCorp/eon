@@ -1,3 +1,4 @@
+import { geoRoutingFromEnv } from "./lib/eon/geo-routing.ts";
 import { proxyLabyrinthRequest } from "./labyrinth/index.ts";
 import { handleAssuranceRequest } from "./assurance/http.ts";
 import { ASSURANCE_HTML } from "./assurance/page.ts";
@@ -41,6 +42,11 @@ interface Env {
   ACCESS_CERTS?: CertFetcher;
   /** Tests only: how to reach Supabase. */
   SUPABASE_FETCH?: Fetcher;
+  /**
+   * Cyber geo routing (v2fly geoip / geosite). Explicit true/on/yes/1 enables it.
+   * Unset or false leaves the exercise unchanged.
+   */
+  INFINITUM_GEO_ENABLED?: string;
 }
 
 function eonDb(env: Env): EonDb | null {
@@ -119,7 +125,7 @@ export class EonExercise {
       set: (atMs) => state.storage.setAlarm(atMs),
       clear: () => state.storage.deleteAlarm(),
     };
-    this.exercise = new Exercise(new DurableStore(state.storage), 7, scheduler);
+    this.exercise = new Exercise(new DurableStore(state.storage), 7, scheduler, geoRoutingFromEnv(env.INFINITUM_GEO_ENABLED));
     const db = eonDb(env);
     if (db) this.exercise.archive = (run) => db.archiveRun(run);
   }
@@ -137,7 +143,7 @@ export class EonExercise {
 /** Local Node runs have no Durable Objects; they keep the log in memory and tick on a timer. */
 let local: Exercise | null = null;
 
-function localExercise(): Exercise {
+function localExercise(geoFlag: string | undefined): Exercise {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const exercise: Exercise = new Exercise(new MemoryStore(), 7, {
     async set(atMs) {
@@ -149,7 +155,7 @@ function localExercise(): Exercise {
     async clear() {
       clearTimeout(timer);
     },
-  });
+  }, geoRoutingFromEnv(geoFlag));
   return exercise;
 }
 
@@ -176,7 +182,7 @@ export default {
       const inner = new Request(request, { headers });
       if (env.EXERCISE) return env.EXERCISE.get(env.EXERCISE.idFromName(EXERCISE)).fetch(inner);
       if (!local) {
-        local = localExercise();
+        local = localExercise(env.INFINITUM_GEO_ENABLED);
         const db = eonDb(env);
         if (db) local.archive = (run) => db.archiveRun(run);
       }

@@ -1,3 +1,4 @@
+import { DISABLED_GEO, type GeoHint, type GeoRouting } from "./geo-routing.ts";
 import { bandOf, CHECKS, type CheckResult, type DeviceHealth, type IntegrityCheck, scoreOf } from "./integrity.ts";
 import { Ledger } from "./ledger.ts";
 import { bearingDeg, classify, dbmToMw, distance, intersectBearings, makeRng, mwToDbm, pathLossDb, rangeForLossM } from "./rf.ts";
@@ -138,9 +139,12 @@ export class Eon {
   private ended = new Map<string, number>();
 
   readonly ledger: Ledger;
+  /** Cyber geo routing. Disabled unless the process turned INFINITUM_GEO_ENABLED on. */
+  private readonly geo: GeoRouting;
 
-  private constructor(ledger: Ledger, seed: number) {
+  private constructor(ledger: Ledger, seed: number, geo: GeoRouting) {
     this.ledger = ledger;
+    this.geo = geo;
     this.rng = makeRng(seed);
     this.units = UNITS.map((u) => ({
       id: u.id,
@@ -168,8 +172,8 @@ export class Eon {
     }));
   }
 
-  static async create(seed = 7): Promise<Eon> {
-    const eon = new Eon(await Ledger.create(), seed);
+  static async create(seed = 7, geo: GeoRouting = DISABLED_GEO): Promise<Eon> {
+    const eon = new Eon(await Ledger.create(), seed, geo);
     await eon.record("exercise", "control", EXERCISE, { units: UNITS.map((u) => u.id), note: "Simulated exercise. Not for operational use." });
     return eon;
   }
@@ -181,7 +185,18 @@ export class Eon {
   private record(type: string, actor: string, subject: string, payload: Record<string, unknown>) {
     // A person stands behind role actions only; unit, team and control entries are the system's own.
     const by = this.person && (actor === "operator" || actor === "teamlead") ? { by: this.person } : {};
-    return this.ledger.append({ timestamp: this.time, type, actor, subject, payload: { ...payload, ...by } });
+    const merged = { ...payload, ...by };
+    // Off: the payload is the same object the exercise has always written.
+    return this.ledger.append({ timestamp: this.time, type, actor, subject, payload: this.geo.enabled ? this.withGeo(merged) : merged });
+  }
+
+  /** Annotation and ledger note for a destination. No-op when the payload names neither an address nor a domain. */
+  private withGeo(payload: Record<string, unknown>): Record<string, unknown> {
+    const hint = hintOf(payload);
+    if (!hint.ip && !hint.domain) return payload;
+    const note = this.geo.annotate(hint);
+    if (!note) return payload;
+    return { ...payload, geo: note };
   }
 
   private nextId(prefix: string) {
@@ -506,7 +521,7 @@ export class Eon {
    * Rules-of-engagement checks for a counter-drone engagement.
    * Returns the reason it is refused, or null when it may be ordered.
    */
-  private roeCheck(track: string, method: EngagementMethod): string | null {
+  private roeCheck(track: string, method: EngagementMethod, hint: GeoHint = {}): string | null {
     const meta = this.tracks.find((t) => t.id === track);
     if (!meta) return `No track ${track}.`;
     const fix = this.fixes.get(track);
@@ -532,6 +547,10 @@ export class Eon {
     }
     const open = this.engagements.find((e) => e.status === "ordered" && this.platformOf(e.track) === platform);
     if (open) return `${track} is already engaged (${open.id}).`;
+    if (this.geo.enabled) {
+      const geoReason = this.geo.policy(hint);
+      if (geoReason) return geoReason;
+    }
     return null;
   }
 
@@ -545,11 +564,14 @@ export class Eon {
    * Counter-drone: an operator requests, the team lead orders.
    * A team lead's request goes straight through the rules check and, if it passes, is ordered.
    */
-  async engage(role: Role, track: string, method: EngagementMethod): Promise<Result<Engagement>> {
+  async engage(role: Role, track: string, method: EngagementMethod, hint: GeoHint = {}): Promise<Result<Engagement>> {
     if (method !== "disrupt" && method !== "handoff") return { ok: false, error: "Method must be disrupt or handoff." };
-    const refused = this.roeCheck(track, method);
+    // A destination hint is ignored while geo routing is off, so the refusal text stays the same.
+    const geoHint = this.geo.enabled ? hint : {};
+    const refused = this.roeCheck(track, method, geoHint);
+    const hinted = this.geo.enabled ? hintFields(hint) : {};
     if (refused) {
-      await this.record("engagement", role, track, { method, status: "refused", reason: refused });
+      await this.record("engagement", role, track, { method, status: "refused", reason: refused, ...hinted });
       return { ok: false, error: refused };
     }
     const engagement: Engagement = {
@@ -565,7 +587,7 @@ export class Eon {
       text: `${role === "teamlead" ? "Team lead" : "Operator"} requested ${method === "disrupt" ? "link disruption" : "WARDEN™ hand-off"} on ${track}.`,
     };
     this.engagements.push(engagement);
-    await this.record("engagement", role, track, { id: engagement.id, method, status: "requested" });
+    await this.record("engagement", role, track, { id: engagement.id, method, status: "requested", ...hinted });
     if (role === "teamlead") return this.order(engagement);
     this.alert(`req:${engagement.id}`, "engagement", null, `${engagement.text} Awaiting the team lead.`);
     return { ok: true, data: engagement };
@@ -938,6 +960,20 @@ export class Eon {
       units: this.units.map((u) => ({ id: u.id, pos: u.truePos })),
     };
   }
+}
+
+function hintOf(payload: Record<string, unknown>): GeoHint {
+  return {
+    ip: typeof payload.ip === "string" ? payload.ip : undefined,
+    domain: typeof payload.domain === "string" ? payload.domain : undefined,
+  };
+}
+
+function hintFields(hint: GeoHint): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (hint.ip) out.ip = hint.ip;
+  if (hint.domain) out.domain = hint.domain;
+  return out;
 }
 
 function affiliationOf(freqMHz: number, cls: EmitterClass): Affiliation {
